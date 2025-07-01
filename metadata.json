@@ -1,0 +1,6 @@
+{
+  "name": "Net Worth Tracker",
+  "description": "A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

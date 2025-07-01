@@ -1,0 +1,21 @@
+
+{
+  "currentVersion": "1.2.0",
+  "changelog": [
+    {
+      "version": "1.2.0",
+      "date": "2025-07-01",
+      "description": "### ✨ New Features\n\n*   **Versioning System**: Added a version number to the footer and a 'What's New' changelog modal to track new features and updates.\n*   **Local-Only Mode**: The application is now fully functional without logging in. All data is stored privately in the browser's local storage."
+    },
+    {
+      "version": "1.1.0",
+      "date": "2025-06-22",
+      "description": "### ✨ New Features\n\n*   **Email & Password Authentication**: Replaced Google Sign-In with a secure email and password authentication system using Firebase.\n*   **Auth Form**: Created a new, dedicated form for user sign-up and login, with clear error handling."
+    },
+    {
+      "version": "1.0.0",
+      "date": "2025-06-20",
+      "description": "### 🎉 Initial Release\n\n*   Track financial accounts, stock holdings, and cash balances.\n*   View asset allocation and net worth history.\n*   Import and categorize expense transactions from CSV files.\n*   Create and manage budgets based on spending history."
+    }
+  ]
+}
