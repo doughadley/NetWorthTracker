@@ -1,9 +1,5 @@
 
 
-
-
-
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -751,7 +747,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
           <h2 className="text-2xl font-semibold text-slate-800">Expense Analysis</h2>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <div className="relative w-full sm:w-64"><div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><MagnifyingGlassIcon className="h-5 w-5 text-slate-400" /></div><input type="text" placeholder="Search descriptions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full rounded-md border-slate-300 py-2.5 pl-10 pr-3 text-base shadow-sm focus:border-primary focus:ring-primary bg-white text-black"/></div>
-            <button onClick={() => setIsImportModalOpen(true)} className="flex-shrink-0 flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-md shadow hover:bg-slate-700 transition sm:min-w-36"><ArrowUpTrayIcon className="mr-2" /> Import CSV</button>
+            
             <div className="flex items-center gap-2 p-2 border border-slate-200 rounded-lg bg-slate-50 shadow-sm">
                 <select
                     id="analysis-month-select"
@@ -779,7 +775,12 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                     {analyzingExpenses ? 'Analyzing...' : 'Analyze'}
                 </button>
             </div>
-            <button onClick={handleCollapseAll} className="flex-shrink-0 flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-md shadow hover:bg-slate-700 transition sm:min-w-36"><ArrowsPointingInIcon className="mr-2 w-5 h-5" /> Collapse All</button>
+
+            <div className="flex items-stretch gap-2 p-2 border border-slate-200 rounded-lg bg-slate-50 shadow-sm">
+                <button onClick={() => setIsImportModalOpen(true)} className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-md shadow hover:bg-slate-700 transition"><ArrowUpTrayIcon className="mr-2" />Import</button>
+                <button onClick={handleCollapseAll} className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-md shadow hover:bg-slate-700 transition"><ArrowsPointingInIcon className="mr-2 w-5 h-5" /> Collapse All</button>
+            </div>
+            
           </div>
         </div>
         

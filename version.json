@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.2.0",
+  "currentVersion": "1.2.1",
   "changelog": [
+    {
+      "version": "1.2.1",
+      "date": "2025-07-02",
+      "description": "### 🐛 Bug Fixes\n\n*   Restored the missing icon for the 'Import' button on the Expenses tab."
+    },
     {
       "version": "1.2.0",
       "date": "2025-07-01",
