@@ -2,7 +2,7 @@
 
 A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.
 
-Current Version: **1.4.0**
+Current Version: **1.5.0**
 
 ## Key Features
 

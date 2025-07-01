@@ -1,40 +1,45 @@
 
 {
-  "currentVersion": "1.4.0",
+  "currentVersion": "1.5.0",
   "changelog": [
     {
+      "version": "1.5.0",
+      "date": "2025-07-01",
+      "description": "### ✨ New Features\n\n*   **Included Category Highlighting**: On the Expenses tab, categories that are included in the monthly spending totals are now highlighted with a light green background for better visibility."
+    },
+    {
       "version": "1.4.0",
-      "date": "2024-10-27",
+      "date": "2025-07-01",
       "description": "### ✨ New Features\n\n*   **Dynamic Expense Dashboard**: The Expenses tab now includes a dropdown to select and view spending data for any previous month. The 'Monthly Spending' and 'Spending by Category' charts update dynamically to reflect the chosen month."
     },
     {
       "version": "1.3.1",
-      "date": "2024-10-26",
+      "date": "2025-07-01",
       "description": "### 🐛 Bug Fixes\n\n*   Fixed a layout issue where the 'Spending by Category' chart could overflow its container on initial load."
     },
     {
       "version": "1.3.0",
-      "date": "2024-10-26",
+      "date": "2025-07-01",
       "description": "### ✨ New Features\n\n*   **Consolidated Top Movers**: The 'Top Movers' section on the Assets dashboard now aggregates holdings by stock symbol, showing a combined total gain/loss across all accounts."
     },
     {
       "version": "1.2.1",
-      "date": "2024-10-25",
+      "date": "2025-07-01",
       "description": "### 🐛 Bug Fixes\n\n*   Restored the missing icon for the 'Import' button on the Expenses tab."
     },
     {
       "version": "1.2.0",
-      "date": "2024-10-25",
+      "date": "2025-07-01",
       "description": "### ✨ New Features\n\n*   **Versioning System**: Added a version number to the footer and a 'What's New' changelog modal to track new features and updates.\n*   **Local-Only Mode**: The application is now fully functional without logging in. All data is stored privately in the browser's local storage."
     },
     {
       "version": "1.1.0",
-      "date": "2024-10-22",
+      "date": "2025-06-27",
       "description": "### ✨ New Features\n\n*   **Email & Password Authentication**: Replaced Google Sign-In with a secure email and password authentication system using Firebase.\n*   **Auth Form**: Created a new, dedicated form for user sign-up and login, with clear error handling."
     },
     {
       "version": "1.0.0",
-      "date": "2024-10-20",
+      "date": "2025-06-25",
       "description": "### 🎉 Initial Release\n\n*   Track financial accounts, stock holdings, and cash balances.\n*   View asset allocation and net worth history.\n*   Import and categorize expense transactions from CSV files.\n*   Create and manage budgets based on spending history."
     }
   ]
