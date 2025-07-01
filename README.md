@@ -86,6 +86,57 @@ The application will now be running and accessible at the local URL provided in 
 
 ---
 
+## Deployment to Firebase Hosting
+
+Follow these steps to deploy the application to a live URL using Firebase Hosting.
+
+### 1. Install Firebase CLI
+
+If you don't already have it, install the Firebase command-line tool globally on your machine.
+```bash
+npm install -g firebase-tools
+```
+*Note: If you are on a corporate network and encounter a `SELF_SIGNED_CERT_IN_CHAIN` error, you may need to configure npm to use your company's SSL certificate or temporarily disable strict SSL.*
+
+### 2. Login to Firebase
+
+Connect the CLI to your Firebase account. This will open a browser window for authentication.
+```bash
+firebase login
+```
+
+### 3. Initialize Hosting
+
+In your project's root directory, run the initialization command to connect your project to Firebase.
+```bash
+firebase init hosting
+```
+You will be prompted with several questions. Answer them as follows:
+*   **Please select an option:** `Use an existing project` (and select your project from the list).
+*   **What do you want to use as your public directory?** `dist`
+*   **Configure as a single-page app (rewrite all urls to /index.html)?** `y`
+*   **Set up automatic builds and deploys with GitHub?** `N` (for manual deployment)
+
+This will create `firebase.json` and `.firebaserc` files in your project.
+
+### 4. Build the Application
+
+Create an optimized production build of your application. This command bundles all your code into the `dist` folder.
+```bash
+npm run build
+```
+
+### 5. Deploy
+
+Upload the contents of the `dist` folder to Firebase Hosting.
+```bash
+firebase deploy
+```
+
+After the command completes, it will display the live URL for your application (e.g., `https://your-project-id.web.app`).
+
+---
+
 ## Versioning
 
 This project uses a simple versioning system managed through the `version.json` file in the root directory.
