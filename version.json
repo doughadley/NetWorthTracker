@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.2.1",
+  "currentVersion": "1.3.0",
   "changelog": [
+    {
+      "version": "1.3.0",
+      "date": "2025-07-03",
+      "description": "### ✨ New Features\n\n*   **Consolidated Top Movers**: The 'Top Movers' section on the Assets dashboard now aggregates holdings by stock symbol, showing a combined total gain/loss across all accounts."
+    },
     {
       "version": "1.2.1",
       "date": "2025-07-02",

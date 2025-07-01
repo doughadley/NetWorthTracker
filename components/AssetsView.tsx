@@ -208,23 +208,34 @@ const AssetsView: React.FC<AssetsViewProps> = ({
 
 
   const topMoversData = useMemo(() => {
-    const allStocks = accounts.flatMap(acc => acc.stockHoldings.map(h => ({...h, accountName: acc.name})));
-    
-    if (allStocks.length === 0) return { topGainers: [], topLosers: [] };
+    const aggregatedStocks: Record<string, { symbol: string; gainLoss: number }> = {};
 
-    const stocksWithGains = allStocks.map(holding => {
+    accounts.forEach(account => {
+      account.stockHoldings.forEach(holding => {
         const currentValue = holding.shares * holding.currentPrice;
         const purchaseValue = holding.shares * holding.purchasePrice;
         const gainLoss = currentValue - purchaseValue;
-        return { ...holding, gainLoss };
-    }).sort((a, b) => b.gainLoss - a.gainLoss);
 
+        if (!aggregatedStocks[holding.symbol]) {
+          aggregatedStocks[holding.symbol] = {
+            symbol: holding.symbol,
+            gainLoss: 0,
+          };
+        }
+        aggregatedStocks[holding.symbol].gainLoss += gainLoss;
+      });
+    });
+
+    const stocksWithGains = Object.values(aggregatedStocks).sort((a, b) => b.gainLoss - a.gainLoss);
+    
+    if (stocksWithGains.length === 0) return { topGainers: [], topLosers: [] };
+    
     const gainers = stocksWithGains.filter(s => s.gainLoss > 0.01);
     const losers = stocksWithGains.filter(s => s.gainLoss < -0.01).reverse();
 
     return {
-        topGainers: gainers.slice(0, 3),
-        topLosers: losers.slice(0, 3),
+      topGainers: gainers.slice(0, 3),
+      topLosers: losers.slice(0, 3),
     };
   }, [accounts]);
   
@@ -340,7 +351,7 @@ const AssetsView: React.FC<AssetsViewProps> = ({
               {topMoversData.topGainers.length > 0 ? (
                   <ul className="space-y-1">
                       {topMoversData.topGainers.map(stock => (
-                          <li key={stock.id} className="text-sm flex justify-between">
+                          <li key={stock.symbol} className="text-sm flex justify-between">
                               <span className="font-medium text-slate-700 truncate" title={stock.symbol}>{stock.symbol}</span>
                               <span className="text-green-600 font-semibold flex-shrink-0 ml-2">+{formatCurrencyWhole(stock.gainLoss)}</span>
                           </li>
@@ -353,7 +364,7 @@ const AssetsView: React.FC<AssetsViewProps> = ({
               {topMoversData.topLosers.length > 0 ? (
                   <ul className="space-y-1">
                       {topMoversData.topLosers.map(stock => (
-                          <li key={stock.id} className="text-sm flex justify-between">
+                          <li key={stock.symbol} className="text-sm flex justify-between">
                               <span className="font-medium text-slate-700 truncate" title={stock.symbol}>{stock.symbol}</span>
                               <span className="text-red-600 font-semibold flex-shrink-0 ml-2">{formatCurrencyWhole(stock.gainLoss)}</span>
                           </li>

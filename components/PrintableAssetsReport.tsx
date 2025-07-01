@@ -57,17 +57,35 @@ const PrintableAssetsReport: React.FC<PrintableAssetsReportProps> = ({
   }, [accounts, institutions]);
 
   const topMoversData = useMemo(() => {
-    const allStocks = accounts.flatMap(acc => acc.stockHoldings);
-    if (allStocks.length === 0) return { topGainers: [], topLosers: [] };
-    const stocksWithGains = allStocks.map(holding => {
-      const currentValue = holding.shares * holding.currentPrice;
-      const purchaseValue = holding.shares * holding.purchasePrice;
-      const gainLoss = currentValue - purchaseValue;
-      return { ...holding, gainLoss };
-    }).sort((a, b) => b.gainLoss - a.gainLoss);
+    const aggregatedStocks: Record<string, { symbol: string; gainLoss: number }> = {};
+
+    accounts.forEach(account => {
+      account.stockHoldings.forEach(holding => {
+        const currentValue = holding.shares * holding.currentPrice;
+        const purchaseValue = holding.shares * holding.purchasePrice;
+        const gainLoss = currentValue - purchaseValue;
+
+        if (!aggregatedStocks[holding.symbol]) {
+          aggregatedStocks[holding.symbol] = {
+            symbol: holding.symbol,
+            gainLoss: 0,
+          };
+        }
+        aggregatedStocks[holding.symbol].gainLoss += gainLoss;
+      });
+    });
+
+    const stocksWithGains = Object.values(aggregatedStocks).sort((a, b) => b.gainLoss - a.gainLoss);
+    
+    if (stocksWithGains.length === 0) return { topGainers: [], topLosers: [] };
+
     const gainers = stocksWithGains.filter(s => s.gainLoss > 0.01);
     const losers = stocksWithGains.filter(s => s.gainLoss < -0.01).reverse();
-    return { topGainers: gainers.slice(0, 5), topLosers: losers.slice(0, 5) };
+    
+    return { 
+        topGainers: gainers.slice(0, 5), 
+        topLosers: losers.slice(0, 5) 
+    };
   }, [accounts]);
 
   const sortedInstitutions = useMemo(() => {
@@ -228,7 +246,7 @@ const PrintableAssetsReport: React.FC<PrintableAssetsReportProps> = ({
                     {topMoversData.topGainers.length > 0 ? (
                         <ul className="space-y-1 text-xs">
                             {topMoversData.topGainers.map(stock => (
-                                <li key={stock.id} className="flex justify-between">
+                                <li key={stock.symbol} className="flex justify-between">
                                     <span className="font-medium truncate">{stock.symbol}</span>
                                     <span className="text-green-600 font-semibold flex-shrink-0 ml-2">+{formatCurrencyWhole(stock.gainLoss)}</span>
                                 </li>
@@ -241,7 +259,7 @@ const PrintableAssetsReport: React.FC<PrintableAssetsReportProps> = ({
                     {topMoversData.topLosers.length > 0 ? (
                         <ul className="space-y-1 text-xs">
                             {topMoversData.topLosers.map(stock => (
-                                <li key={stock.id} className="flex justify-between">
+                                <li key={stock.symbol} className="flex justify-between">
                                     <span className="font-medium truncate">{stock.symbol}</span>
                                     <span className="text-red-600 font-semibold flex-shrink-0 ml-2">{formatCurrencyWhole(stock.gainLoss)}</span>
                                 </li>

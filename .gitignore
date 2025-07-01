@@ -23,13 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-
-# Environment variables
-.env.local
-.env.*.local
-
-# Dependencies
-/node_modules
-
-# Build output
-/dist
+*.local
+*.env
