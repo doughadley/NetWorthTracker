@@ -1,4 +1,6 @@
 
+
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -79,6 +81,8 @@ const categoryColors = [
     '#38bdf8', '#fbbf24', '#a78bfa', '#34d399', '#f87171', '#818cf8', '#facc15', '#a3e635'
 ];
 
+type ChartView = 'grouped' | 'stacked';
+
 const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransactionsImported, budgets, onUpdateTransactionCategory, onMassUpdateCategory, categoryStructure, categoryInclusion }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedFormatId, setSelectedFormatId] = useState<string>(formats[0]?.id || '');
@@ -102,6 +106,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const [analysisMonth, setAnalysisMonth] = useState<string>('');
 
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [chartView, setChartView] = useState<ChartView>('stacked');
 
   const availableMonths = useMemo(() => {
     const monthSet = new Set<string>();
@@ -443,14 +448,48 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
             const valB = Math.abs(spendingTotals[b] || 0) + (budgetTotals[b] || 0);
             return valB - valA;
         });
+        
+        const rawSpendingData = labels.map(label => Math.abs(spendingTotals[label] || 0));
+        const rawBudgetData = labels.map(label => budgetTotals[label] || 0);
 
-        return {
-            labels,
-            spendingData: labels.map(label => Math.abs(spendingTotals[label] || 0)),
-            budgetData: labels.map(label => budgetTotals[label] || 0),
-        };
+        if (chartView === 'stacked') {
+            const spentWithinBudget: number[] = [];
+            const overspent: number[] = [];
+            const budgetRemaining: number[] = [];
 
-    } else {
+            labels.forEach((label, i) => {
+                const spent = rawSpendingData[i];
+                const budget = rawBudgetData[i];
+                if (spent <= budget) {
+                    spentWithinBudget.push(spent);
+                    overspent.push(0);
+                    budgetRemaining.push(budget - spent);
+                } else {
+                    spentWithinBudget.push(budget);
+                    overspent.push(spent - budget);
+                    budgetRemaining.push(0);
+                }
+            });
+
+            return {
+                labels,
+                isStacked: true,
+                datasets: { spentWithinBudget, overspent, budgetRemaining },
+                rawSpending: rawSpendingData,
+                rawBudget: rawBudgetData,
+            };
+        } else { // Grouped view
+             return {
+                labels,
+                isStacked: false,
+                datasets: {
+                    spending: rawSpendingData,
+                    budget: rawBudgetData
+                }
+            };
+        }
+
+    } else { // No budget selected
         const sorted = Object.entries(spendingTotals).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
         const topCategories = sorted.slice(0, 7);
         const otherTotal = sorted.slice(7).reduce((sum, item) => sum + item[1], 0);
@@ -459,11 +498,13 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         
         return {
             labels: topCategories.map(item => item[0]),
-            spendingData: topCategories.map(item => Math.abs(item[1])),
-            budgetData: null,
+            isStacked: false,
+            datasets: {
+                spending: topCategories.map(item => Math.abs(item[1])),
+            },
         };
     }
-  }, [transactionsForSelectedMonth, selectedBudget]);
+  }, [transactionsForSelectedMonth, selectedBudget, chartView]);
   
   
   useEffect(() => {
@@ -474,110 +515,71 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     if (categoryChartRef.current) {
         categoryChartRef.current.destroy();
     }
+    
+    const chartDatasets = categorySpendingData.isStacked
+        ? [
+            { label: 'Spent (Under Budget)', data: categorySpendingData.datasets.spentWithinBudget, backgroundColor: 'rgb(34 197 94)', borderRadius: 4, },
+            { label: 'Overspent', data: categorySpendingData.datasets.overspent, backgroundColor: 'rgb(239 68 68)', borderRadius: 4, },
+            { label: 'Budget Remaining', data: categorySpendingData.datasets.budgetRemaining, backgroundColor: 'rgb(226 232 240)', borderRadius: 4, }
+          ]
+        : categorySpendingData.datasets.budget
+        ? [
+            { label: 'Spent', data: categorySpendingData.datasets.spending, backgroundColor: '#ef4444', borderRadius: 4, },
+            { label: 'Budget', data: categorySpendingData.datasets.budget, backgroundColor: '#a1a1aa', borderRadius: 4, }
+          ]
+        : [{ label: 'Spent', data: categorySpendingData.datasets.spending, backgroundColor: categoryColors, borderRadius: 4, }];
 
-    const isBudgetView = !!categorySpendingData.budgetData;
-
-    // Custom plugin to draw data labels on the bars
-    const dataLabelsPlugin = {
-        id: 'customDataLabels',
-        afterDatasetsDraw: (chart: Chart) => {
-            const { ctx, data } = chart;
-            ctx.save();
-            ctx.font = '600 10px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#64748b'; // slate-500
-
-            data.datasets.forEach((dataset, i) => {
-                const meta = chart.getDatasetMeta(i);
-                if (!meta.hidden) {
-                    meta.data.forEach((element, index) => {
-                        const value = dataset.data[index];
-                        if (typeof value === 'number' && value > 0) {
-                            const formattedValue = formatCurrencyWhole(value);
-                            ctx.fillText(formattedValue, element.x + 5, element.y);
-                        }
-                    });
-                }
-            });
-            ctx.restore();
+    const tooltipCallbacks: any = {
+        label: function(context: any) {
+            return `${context.dataset.label}: ${formatCurrencyWhole(context.parsed.x)}`;
         }
     };
+    
+    if (categorySpendingData.isStacked) {
+        tooltipCallbacks.label = function(context: any) {
+            const totalSpent = categorySpendingData.rawSpending?.[context.dataIndex] ?? 0;
+            const totalBudget = categorySpendingData.rawBudget?.[context.dataIndex] ?? 0;
+            return `Spent: ${formatCurrencyWhole(totalSpent)} of ${formatCurrencyWhole(totalBudget)} budget`;
+        };
+        // This filter ensures only one tooltip appears for a stacked bar
+        tooltipCallbacks.filter = (tooltipItem: any) => tooltipItem.datasetIndex === 0;
+    }
 
     categoryChartRef.current = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: categorySpendingData.labels,
-            datasets: isBudgetView
-            ? [
-                {
-                    label: 'Spent',
-                    data: categorySpendingData.spendingData,
-                    backgroundColor: '#ef4444', // red-500
-                    borderRadius: 4,
-                },
-                {
-                    label: 'Budget',
-                    data: categorySpendingData.budgetData as number[],
-                    backgroundColor: '#a1a1aa', // zinc-400
-                    borderRadius: 4,
-                },
-              ]
-            : [{
-                label: 'Spent',
-                data: categorySpendingData.spendingData,
-                backgroundColor: categoryColors,
-                borderRadius: 4,
-            }]
+            datasets: chartDatasets
         },
         options: {
-            indexAxis: 'y', // Set to horizontal
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: isBudgetView,
+                    display: !!selectedBudget,
                     position: 'top',
                     align: 'end',
                 },
                 tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.dataset.label}: ${formatCurrencyWhole(context.parsed.x)}`;
-                        }
-                    }
+                    callbacks: tooltipCallbacks
                 }
             },
             scales: {
-                x: { // Value axis
+                x: {
+                    stacked: categorySpendingData.isStacked,
                     beginAtZero: true,
-                    border: {
-                        display: false,
-                    },
-                    grid: {
-                        color: '#e2e8f0', // slate-200
-                    },
-                    ticks: {
-                        font: { size: 10 },
-                        callback: function(value) {
-                             return formatCurrencyWhole(Number(value));
-                        }
-                    },
-                    afterDataLimits(scale) {
-                        scale.max = scale.max * 1.25;
-                    },
+                    border: { display: false },
+                    grid: { color: '#e2e8f0' },
+                    ticks: { font: { size: 10 }, callback: (value) => formatCurrencyWhole(Number(value)) },
                 },
-                y: { // Category axis
-                    grid: {
-                        display: false,
-                    },
-                    ticks: {
-                        font: { size: 10 },
-                    }
+                y: {
+                    stacked: categorySpendingData.isStacked,
+                    grid: { display: false },
+                    ticks: { font: { size: 10 } }
                 }
             }
         },
-        plugins: [dataLabelsPlugin] // Register the custom plugin
     });
 
     return () => { if (categoryChartRef.current) categoryChartRef.current.destroy(); };
@@ -880,9 +882,32 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                     )}
                 </div>
                 <div className="bg-white rounded-xl shadow p-5 flex flex-col ring-1 ring-slate-100 min-h-0">
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                        {budgetProgress ? 'Spending vs. Budget' : 'Spending by Category'}
-                    </h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold text-slate-800">
+                            {budgetProgress ? 'Spending vs. Budget' : 'Spending by Category'}
+                        </h3>
+                        {selectedBudget && (
+                            <div>
+                                <span className="text-xs text-slate-500 mr-2">Chart View:</span>
+                                <div className="inline-flex rounded-md shadow-sm" role="group">
+                                    <button
+                                        type="button"
+                                        onClick={() => setChartView('stacked')}
+                                        className={`px-3 py-1 text-xs font-medium border border-slate-300 rounded-l-lg ${chartView === 'stacked' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                    >
+                                        Stacked
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setChartView('grouped')}
+                                        className={`-ml-px px-3 py-1 text-xs font-medium border border-slate-300 rounded-r-lg ${chartView === 'grouped' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                    >
+                                        Grouped
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="relative flex-grow min-h-0"><canvas ref={categoryChartCanvasRef}></canvas></div>
                 </div>
             </div>
@@ -900,7 +925,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                 <span className={`text-lg font-bold ${searchTotal < 0 ? 'text-red-700' : 'text-green-700'}`}>{formatCurrencyWhole(Math.abs(searchTotal))}</span>
               </div>
             )}
-            {sortedMonthKeys.length > 0 ? (<div className="space-y-4"> {sortedMonthKeys.map(monthKey => { const monthData = groupedExpenses[monthKey]; const isMonthExpanded = expandedMonths.has(monthKey); const sortedParentCategoryKeys = Object.keys(monthData.parentCategories).sort((a,b) => Math.abs(monthData.parentCategories[b].total) - Math.abs(monthData.parentCategories[a].total)); const categorizedMonthNetExpense = Object.entries(monthData.parentCategories).reduce((sum, [parentKey, parentData]) => { const parentNetExpense = Object.entries(parentData.subCategories).reduce((subSum, [subKey, subData]) => { if (categoryInclusion[parentKey] !== false && categoryInclusion[subKey] !== false) { return subSum + subData.total; } return subSum; }, 0); return sum + parentNetExpense; }, 0); const categorizedMonthTotalSpent = Math.abs(categorizedMonthNetExpense); const categorizedBudgetForMonth = selectedBudget ? selectedBudget.items.reduce((sum, item) => sum + item.amount, 0) : 0; const totalDifference = categorizedBudgetForMonth - categorizedMonthTotalSpent; const allMonthTransactions = Object.values(monthData.parentCategories).flatMap(parent => Object.values(parent.subCategories).flatMap(sub => sub.transactions)); const monthHasAnomaly = groupContainsAnomalies(allMonthTransactions); return ( <div key={monthKey} className={`border rounded-lg transition-all duration-300 ${isMonthExpanded ? 'border-sky-300 shadow-lg' : 'border-slate-200'}`}> <div className={`flex items-center p-3 sm:p-4 cursor-pointer rounded-t-lg transition-colors ${isMonthExpanded ? 'bg-primary-light' : 'bg-slate-50'}`} onClick={() => toggleMonth(monthKey)}> <div className="flex-grow"> <h3 className="font-semibold text-primary flex items-center gap-2">{formatMonth(monthKey)} {monthHasAnomaly && <span title="This month contains anomalous transactions"><ExclamationTriangleIcon className="h-5 w-5 text-amber-500"/></span>}</h3> <p className="text-sm text-slate-500">{selectedBudget ? 'Actual vs. Budget (Included in Total)' : 'Total Included Expenses'}</p> </div> <div className="text-right"> <p className="font-bold text-lg text-slate-800">{formatCurrencyWhole(categorizedMonthTotalSpent)}</p> {selectedBudget && ( <p className="text-xs text-slate-500"> Budget: {formatCurrencyWhole(categorizedBudgetForMonth)} <span className={`ml-2 font-semibold ${totalDifference >= 0 ? 'text-green-600' : 'text-red-600'}`}> ({totalDifference >= 0 ? '+' : ''}{formatCurrencyWhole(totalDifference)}) </span> </p> )} </div> <div className="pl-4 text-slate-400">{isMonthExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}</div> </div> {isMonthExpanded && ( <div className="p-2 sm:p-3 space-y-2"> {sortedParentCategoryKeys.map(parentKey => { const parentData = monthData.parentCategories[parentKey]; const parentCompositeKey = `${monthKey}-${parentKey}`; const isParentExpanded = expandedParentCategories.has(parentCompositeKey); const sortedSubCategoryKeys = Object.keys(parentData.subCategories).sort((a,b) => Math.abs(parentData.subCategories[b].total) - Math.abs(parentData.subCategories[a].total)); const hasSubCategories = !(sortedSubCategoryKeys.length === 1 && sortedSubCategoryKeys[0] === parentKey); const parentNetExpense = Object.entries(parentData.subCategories).reduce((subSum, [subKey, subData]) => { if (categoryInclusion[parentKey] !== false && categoryInclusion[subKey] !== false) { return subSum + subData.total; } return subSum; }, 0); const parentTotalSpent = Math.abs(parentNetExpense); const budgetForParent = selectedBudget ? selectedBudget.items.filter(item => item.category === parentKey || item.category.startsWith(`${parentKey}:`)).reduce((sum, item) => sum + item.amount, 0) : 0; const differenceForParent = budgetForParent - parentTotalSpent; const allParentTransactions = Object.values(parentData.subCategories).flatMap(sub => sub.transactions); const parentHasAnomaly = groupContainsAnomalies(allParentTransactions); const isParentIncluded = categoryInclusion[parentKey] !== false; return ( <div key={parentCompositeKey} className="border border-slate-200 rounded-md"> <div className={`flex items-center p-2 cursor-pointer ${isParentIncluded ? 'bg-green-50' : 'bg-slate-100/50'}`} onClick={() => toggleParentCategory(parentCompositeKey)}> <div className="flex-grow font-semibold text-slate-700 flex items-center gap-2">{parentKey} {parentHasAnomaly && <span title="This category contains anomalous transactions"><ExclamationTriangleIcon className="h-4 w-4 text-amber-500"/></span>}</div> <div className="text-right"> <p className="font-bold text-slate-800 text-sm">{formatCurrencyWhole(parentTotalSpent)}</p> {selectedBudget && budgetForParent > 0 && ( <p className="text-xs text-slate-500"> Budget: {formatCurrencyWhole(budgetForParent)} <span className={`ml-2 font-semibold ${differenceForParent >= 0 ? 'text-green-600' : 'text-red-600'}`}> ({differenceForParent >= 0 ? '+' : ''}{formatCurrencyWhole(differenceForParent)}) </span> </p> )} </div> <div className="pl-3 text-slate-400">{isParentExpanded ? <ChevronUpIcon className="w-4 h-4"/> : <ChevronDownIcon className="w-4 h-4"/>}</div> </div> {isParentExpanded && ( hasSubCategories ? ( <div className="pl-2 pr-1 py-1"> {sortedSubCategoryKeys.map(subKey => { const subData = parentData.subCategories[subKey]; const subCompositeKey = `${parentCompositeKey}-${subKey}`; const isSubExpanded = expandedSubCategories.has(subCompositeKey); const subTotalSpent = Math.abs(subData.total); const budgetForSub = budgetMap?.get(subKey) ?? 0; const differenceForSub = budgetForSub - subTotalSpent; const subHasAnomaly = groupContainsAnomalies(subData.transactions); const isSubIncluded = categoryInclusion[parentKey] !== false && categoryInclusion[subKey] !== false; return ( <div key={subCompositeKey}> <div className={`grid grid-cols-[1fr,8fr,4fr] sm:grid-cols-12 items-center gap-2 p-2 cursor-pointer rounded ${isSubIncluded ? 'bg-green-50' : 'hover:bg-slate-50'}`} onClick={() => toggleSubCategory(subCompositeKey)}> <div className="col-span-1 text-slate-400">{isSubExpanded ? <ChevronUpIcon className="w-4 h-4"/> : <ChevronDownIcon className="w-4 h-4"/>}</div> <div className="col-span-7 font-medium text-sm text-slate-600 flex items-center gap-2">{subKey} {subHasAnomaly && <span title="This sub-category contains anomalous transactions"><ExclamationTriangleIcon className="h-4 w-4 text-amber-500" /></span>}</div> <div className="col-span-4 text-right text-sm"> <p className="font-semibold">{formatCurrencyWhole(subTotalSpent)}</p> {selectedBudget && budgetForSub > 0 && ( <p className="text-xs text-slate-500"> of {formatCurrencyWhole(budgetForSub)} <span className={`ml-1 font-medium ${differenceForSub >= 0 ? 'text-green-600' : 'text-red-600'}`}> ({differenceForSub >= 0 ? '+' : ''}{formatCurrencyWhole(differenceForSub)}) </span> </p> )} </div> </div> {isSubExpanded && <TransactionList transactions={subData.transactions} />} </div> ) })} </div> ) : ( parentData.subCategories[parentKey] ? <TransactionList transactions={parentData.subCategories[parentKey].transactions} /> : null ) )} </div> ) })} </div> )} </div> ); })} </div> ) : ( <div className="text-center py-10 border-2 border-dashed border-slate-300 rounded-lg"> <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> {searchTerm ? ( <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /> ) : ( <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2-2H5a2 2 0 01-2-2z" /> )} </svg> <h3 className="mt-2 text-sm font-medium text-slate-900">{searchTerm ? 'No matching expenses' : 'No expense data'}</h3> <p className="mt-1 text-sm text-slate-500"> {searchTerm ? `No transactions found matching "${searchTerm}". Try a different search.` : 'Get started by importing a CSV file with your transactions.'} </p> d</div> )}
+            {sortedMonthKeys.length > 0 ? (<div className="space-y-4"> {sortedMonthKeys.map(monthKey => { const monthData = groupedExpenses[monthKey]; const isMonthExpanded = expandedMonths.has(monthKey); const sortedParentCategoryKeys = Object.keys(monthData.parentCategories).sort((a,b) => Math.abs(monthData.parentCategories[b].total) - Math.abs(monthData.parentCategories[a].total)); const categorizedMonthNetExpense = Object.entries(monthData.parentCategories).reduce((sum, [parentKey, parentData]) => { const parentNetExpense = Object.entries(parentData.subCategories).reduce((subSum, [subKey, subData]) => { if (categoryInclusion[parentKey] !== false && categoryInclusion[subKey] !== false) { return subSum + subData.total; } return subSum; }, 0); return sum + parentNetExpense; }, 0); const categorizedMonthTotalSpent = Math.abs(categorizedMonthNetExpense); const categorizedBudgetForMonth = selectedBudget ? selectedBudget.items.reduce((sum, item) => sum + item.amount, 0) : 0; const totalDifference = categorizedBudgetForMonth - categorizedMonthTotalSpent; const allMonthTransactions = Object.values(monthData.parentCategories).flatMap(parent => Object.values(parent.subCategories).flatMap(sub => sub.transactions)); const monthHasAnomaly = groupContainsAnomalies(allMonthTransactions); return ( <div key={monthKey} className={`border rounded-lg transition-all duration-300 ${isMonthExpanded ? 'border-sky-300 shadow-lg' : 'border-slate-200'}`}> <div className={`flex items-center p-3 sm:p-4 cursor-pointer rounded-t-lg transition-colors ${isMonthExpanded ? 'bg-primary-light' : 'bg-slate-50'}`} onClick={() => toggleMonth(monthKey)}> <div className="flex-grow"> <h3 className="font-semibold text-primary flex items-center gap-2">{formatMonth(monthKey)} {monthHasAnomaly && <span title="This month contains anomalous transactions"><ExclamationTriangleIcon className="h-5 w-5 text-amber-500"/></span>}</h3> <p className="text-sm text-slate-500">{selectedBudget ? 'Actual vs. Budget (Included in Total)' : 'Total Included Expenses'}</p> </div> <div className="text-right"> <p className="font-bold text-lg text-slate-800">{formatCurrencyWhole(categorizedMonthTotalSpent)}</p> {selectedBudget && ( <p className="text-xs text-slate-500"> Budget: {formatCurrencyWhole(categorizedBudgetForMonth)} <span className={`ml-2 font-semibold ${totalDifference >= 0 ? 'text-green-600' : 'text-red-600'}`}> ({totalDifference >= 0 ? '+' : ''}{formatCurrencyWhole(totalDifference)}) </span> </p> )} </div> <div className="pl-4 text-slate-400">{isMonthExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}</div> </div> {isMonthExpanded && ( <div className="p-2 sm:p-3 space-y-2"> {sortedParentCategoryKeys.map(parentKey => { const parentData = monthData.parentCategories[parentKey]; const parentCompositeKey = `${monthKey}-${parentKey}`; const isParentExpanded = expandedParentCategories.has(parentCompositeKey); const sortedSubCategoryKeys = Object.keys(parentData.subCategories).sort((a,b) => Math.abs(parentData.subCategories[b].total) - Math.abs(parentData.subCategories[a].total)); const hasSubCategories = !(sortedSubCategoryKeys.length === 1 && sortedSubCategoryKeys[0] === parentKey); const parentNetExpense = Object.entries(parentData.subCategories).reduce((subSum, [subKey, subData]) => { if (categoryInclusion[parentKey] !== false && categoryInclusion[subKey] !== false) { return subSum + subData.total; } return subSum; }, 0); const parentTotalSpent = Math.abs(parentNetExpense); const budgetForParent = selectedBudget ? selectedBudget.items.filter(item => item.category === parentKey || item.category.startsWith(`${parentKey}:`)).reduce((sum, item) => sum + item.amount, 0) : 0; const differenceForParent = budgetForParent - parentTotalSpent; const allParentTransactions = Object.values(parentData.subCategories).flatMap(sub => sub.transactions); const parentHasAnomaly = groupContainsAnomalies(allParentTransactions); const isParentIncluded = categoryInclusion[parentKey] !== false; return ( <div key={parentCompositeKey} className="border border-slate-200 rounded-md"> <div className={`flex items-center p-2 cursor-pointer ${isParentIncluded ? 'bg-green-50' : 'bg-slate-100/50'}`} onClick={() => toggleParentCategory(parentCompositeKey)}> <div className="flex-grow font-semibold text-slate-700 flex items-center gap-2">{parentKey} {parentHasAnomaly && <span title="This category contains anomalous transactions"><ExclamationTriangleIcon className="h-4 w-4 text-amber-500"/></span>}</div> <div className="text-right"> <p className="font-bold text-slate-800 text-sm">{formatCurrencyWhole(parentTotalSpent)}</p> {selectedBudget && budgetForParent > 0 && ( <p className="text-xs text-slate-500"> Budget: {formatCurrencyWhole(budgetForParent)} <span className={`ml-2 font-semibold ${differenceForParent >= 0 ? 'text-green-600' : 'text-red-600'}`}> ({differenceForParent >= 0 ? '+' : ''}{formatCurrencyWhole(differenceForParent)}) </span> </p> )} </div> <div className="pl-3 text-slate-400">{isParentExpanded ? <ChevronUpIcon className="w-4 h-4"/> : <ChevronDownIcon className="w-4 h-4"/>}</div> </div> {isParentExpanded && ( hasSubCategories ? ( <div className="pl-2 pr-1 py-1"> {sortedSubCategoryKeys.map(subKey => { const subData = parentData.subCategories[subKey]; const subCompositeKey = `${parentCompositeKey}-${subKey}`; const isSubExpanded = expandedSubCategories.has(subCompositeKey); const subTotalSpent = Math.abs(subData.total); const budgetForSub = budgetMap?.get(subKey) ?? 0; const differenceForSub = budgetForSub - subTotalSpent; const subHasAnomaly = groupContainsAnomalies(subData.transactions); const isSubIncluded = categoryInclusion[parentKey] !== false && categoryInclusion[subKey] !== false; return ( <div key={subCompositeKey}> <div className={`grid grid-cols-[1fr,8fr,4fr] sm:grid-cols-12 items-center gap-2 p-2 cursor-pointer rounded ${isSubIncluded ? 'bg-green-50' : 'hover:bg-slate-50'}`} onClick={() => toggleSubCategory(subCompositeKey)}> <div className="col-span-1 text-slate-400">{isSubExpanded ? <ChevronUpIcon className="w-4 h-4"/> : <ChevronDownIcon className="w-4 h-4"/>}</div> <div className="col-span-7 font-medium text-sm text-slate-600 flex items-center gap-2">{subKey} {subHasAnomaly && <span title="This sub-category contains anomalous transactions"><ExclamationTriangleIcon className="h-4 w-4 text-amber-500" /></span>}</div> <div className="col-span-4 text-right text-sm"> <p className="font-semibold">{formatCurrencyWhole(subTotalSpent)}</p> {selectedBudget && budgetForSub > 0 && ( <p className="text-xs text-slate-500"> of {formatCurrencyWhole(budgetForSub)} <span className={`ml-1 font-medium ${differenceForSub >= 0 ? 'text-green-600' : 'text-red-600'}`}> ({differenceForSub >= 0 ? '+' : ''}{formatCurrencyWhole(differenceForSub)}) </span> </p> )} </div> </div> {isSubExpanded && <TransactionList transactions={subData.transactions} />} </div> ) })} </div> ) : ( parentData.subCategories[parentKey] ? <TransactionList transactions={parentData.subCategories[parentKey].transactions} /> : null ) )} </div> ) })} </div> )} </div> ); })} </div> ) : ( <div className="text-center py-10 border-2 border-dashed border-slate-300 rounded-lg"> <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> {searchTerm ? ( <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /> ) : ( <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2-2H5a2 2 0 01-2-2z" /> )} </svg> <h3 className="mt-2 text-sm font-medium text-slate-900">{searchTerm ? 'No matching expenses' : 'No expense data'}</h3> <p className="mt-1 text-sm text-slate-500"> {searchTerm ? `No transactions found matching "${searchTerm}". Try a different search.` : 'Get started by importing a CSV file with your transactions.'} </p> </div> )}
         </div>
       </div>
 

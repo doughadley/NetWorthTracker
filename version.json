@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.5.1",
+  "currentVersion": "1.6.0",
   "changelog": [
+    {
+      "version": "1.6.0",
+      "date": "2025-07-01",
+      "description": "### ✨ New Features\n\n*   **Dynamic Budget Chart**: When a budget is selected on the Expenses tab, the 'Spending by Category' chart now defaults to a more intuitive stacked bar view. This view clearly shows 'Spent', 'Overspent', and 'Remaining' budget portions for each category. A toggle has been added to switch between the new 'Stacked' and original 'Grouped' views."
+    },
     {
       "version": "1.5.1",
       "date": "2025-07-01",
