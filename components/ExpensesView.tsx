@@ -1,5 +1,3 @@
-
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -102,7 +100,9 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
 
   const [analysisMonth, setAnalysisMonth] = useState<string>('');
 
-  const availableAnalysisMonths = useMemo(() => {
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+
+  const availableMonths = useMemo(() => {
     const monthSet = new Set<string>();
     transactions.forEach(tx => {
       const date = new Date(tx.transactionDate);
@@ -112,6 +112,21 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     });
     return Array.from(monthSet).sort().reverse();
   }, [transactions]);
+  
+  const formatMonth = (monthKey: string) => {
+    if (!monthKey) return '';
+    const [year, month] = monthKey.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  };
+  
+  // Set initial month for dashboard
+  useEffect(() => {
+    if (availableMonths.length > 0 && !selectedMonth) {
+      setSelectedMonth(availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
+
+  const availableAnalysisMonths = useMemo(() => availableMonths, [availableMonths]);
 
   useEffect(() => {
     // Set initial analysis month to the latest one available.
@@ -138,13 +153,16 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     return map;
   }, [selectedBudget]);
 
-  const currentMonthTransactions = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+  const transactionsForSelectedMonth = useMemo(() => {
+    if (!selectedMonth) return [];
+    
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const targetYear = year;
+    const targetMonth = month - 1; // getMonth is 0-indexed
+
     return transactions.filter(tx => {
         const txDate = new Date(tx.transactionDate);
-        if (!(txDate.getFullYear() === currentYear && txDate.getMonth() === currentMonth && EXPENSE_RELATED_TYPES.includes(tx.type.toLowerCase()))) {
+        if (!(txDate.getFullYear() === targetYear && txDate.getMonth() === targetMonth && EXPENSE_RELATED_TYPES.includes(tx.type.toLowerCase()))) {
             return false;
         }
 
@@ -156,7 +174,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
 
         return true;
     });
-  }, [transactions, categoryInclusion]);
+  }, [transactions, categoryInclusion, selectedMonth]);
 
   const { groupedExpenses, searchTotal } = useMemo(() => {
     const grouped: Record<string, GroupedMonth> = {};
@@ -264,7 +282,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
 
         let jsonStr = response.text.trim();
         
-        const fenceRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
+        const fenceRegex = /`{3}(?:json)?\s*([\s\S]*?)\s*`{3}/;
         const match = jsonStr.match(fenceRegex);
         
         if (match && match[1]) {
@@ -361,12 +379,14 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   };
 
   // -- DASHBOARD CALCULATIONS --
-  const currentMonthMetrics = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+  const selectedMonthMetrics = useMemo(() => {
+    if (!selectedMonth) return { currentMonthTotal: 0, change: 0 };
     
-    const prevMonthDate = new Date(currentYear, currentMonth, 0);
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const currentYear = year;
+    const currentMonth = month - 1; // 0-indexed
+    
+    const prevMonthDate = new Date(currentYear, currentMonth, 0); // Day 0 gives last day of previous month
     const prevYear = prevMonthDate.getFullYear();
     const prevMonth = prevMonthDate.getMonth();
 
@@ -380,7 +400,6 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                 const { parent, child } = parseCategory(tx.category);
                 const fullCategoryName = child ? `${parent}:${child}` : parent;
 
-                // Explicitly check for false, as undefined means 'include'.
                 if (categoryInclusion[fullCategoryName] === false || categoryInclusion[parent] === false) {
                     return false;
                 }
@@ -394,18 +413,18 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     const prevMonthNetExpense = getMonthNetExpense(prevYear, prevMonth);
     
     let change = 0;
-    if (prevMonthNetExpense < 0) {
+    if (prevMonthNetExpense < 0 && prevMonthNetExpense !== 0) {
         change = ((currentMonthNetExpense - prevMonthNetExpense) / prevMonthNetExpense) * 100;
     } else if (currentMonthNetExpense < 0) {
-        change = 100;
+        change = -100; // From zero spending to some spending
     }
 
     return { currentMonthTotal: Math.abs(currentMonthNetExpense), change };
-  }, [transactions, categoryInclusion]);
+  }, [transactions, categoryInclusion, selectedMonth]);
   
   const categorySpendingData = useMemo(() => {
     const spendingTotals: Record<string, number> = {};
-    currentMonthTransactions.forEach(tx => {
+    transactionsForSelectedMonth.forEach(tx => {
         const { parent } = parseCategory(tx.category);
         spendingTotals[parent] = (spendingTotals[parent] || 0) + tx.amount;
     });
@@ -443,7 +462,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
             budgetData: null,
         };
     }
-  }, [currentMonthTransactions, selectedBudget]);
+  }, [transactionsForSelectedMonth, selectedBudget]);
   
   
   useEffect(() => {
@@ -568,7 +587,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     const budgetMap = new Map(selectedBudget.items.map(i => [i.category, i.amount]));
     const budgetTotal = selectedBudget.items.reduce((sum, i) => sum + i.amount, 0);
     
-    const netExpense = currentMonthTransactions.reduce((sum, tx) => {
+    const netExpense = transactionsForSelectedMonth.reduce((sum, tx) => {
         const { parent, child } = parseCategory(tx.category);
         const subCategory = child ? `${parent}:${child}` : parent;
         if(budgetMap.has(parent) || budgetMap.has(subCategory)) {
@@ -585,7 +604,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         remaining: budgetTotal - spentTotal,
         progress: budgetTotal > 0 ? (spentTotal / budgetTotal) * 100 : 0,
     };
-  }, [selectedBudget, currentMonthTransactions]);
+  }, [selectedBudget, transactionsForSelectedMonth]);
   
   // -- SELECTION & IMPORT HANDLERS --
   const handleSelectionChange = (id: string, isSelected: boolean) => {
@@ -738,7 +757,6 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const toggleParentCategory = (key: string) => setExpandedParentCategories(p => p.has(key) ? (new Set([...p].filter(k => k !== key))) : new Set([...p, key]));
   const toggleSubCategory = (key: string) => setExpandedSubCategories(p => p.has(key) ? (new Set([...p].filter(k => k !== key))) : new Set([...p, key]));
   const handleCollapseAll = () => { setExpandedMonths(new Set()); setExpandedParentCategories(new Set()); setExpandedSubCategories(new Set()); };
-  const formatMonth = (monthKey: string) => { const [year, month] = monthKey.split('-'); return new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' }); };
   
   return (
     <>
@@ -783,68 +801,89 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
             
           </div>
         </div>
-        
-        {/* --- DASHBOARD --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 auto-rows-[16rem]">
-            <div className="bg-white rounded-xl shadow p-5 flex flex-col justify-between ring-1 ring-slate-100">
-                <div>
-                    {budgetProgress ? (
-                        // --- BUDGET SELECTED VIEW ---
-                        <div>
-                            <h3 className="text-lg font-semibold text-slate-800 mb-4">{selectedBudget?.name} - Progress</h3>
-                            <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
-                                <div className="w-full md:w-1/3 text-center md:text-left">
-                                    <p className="text-sm text-slate-500">Spent This Month</p>
-                                    <p className="text-4xl font-bold text-red-600">{formatCurrencyWhole(budgetProgress.spent)}</p>
-                                    <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)}</p>
-                                </div>
-                                <div className="w-full md:w-2/3">
-                                    <div className="flex justify-between text-sm font-medium text-slate-600 mb-1">
-                                        <span>{budgetProgress.progress.toFixed(1)}% Used</span>
-                                        <span className={`${budgetProgress.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {formatCurrencyWhole(budgetProgress.remaining)} {budgetProgress.remaining >= 0 ? 'left' : 'over'}
-                                        </span>
+
+        {/* --- MONTH SELECTOR & DASHBOARD --- */}
+        <div className="space-y-6">
+            {availableMonths.length > 0 && (
+                <div className="pb-4 border-b">
+                    <label htmlFor="month-select" className="block text-sm font-medium text-slate-600 mb-1">
+                        Showing Dashboard For:
+                    </label>
+                    <select
+                        id="month-select"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="block w-full max-w-xs rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
+                    >
+                        {availableMonths.map(month => (
+                            <option key={month} value={month}>
+                                {formatMonth(month)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 auto-rows-[16rem]">
+                <div className="bg-white rounded-xl shadow p-5 flex flex-col justify-between ring-1 ring-slate-100">
+                    <div>
+                        {budgetProgress ? (
+                            // --- BUDGET SELECTED VIEW ---
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800 mb-4">{selectedBudget?.name} - Progress</h3>
+                                <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
+                                    <div className="w-full md:w-1/3 text-center md:text-left">
+                                        <p className="text-sm text-slate-500">Spent This Month</p>
+                                        <p className="text-4xl font-bold text-red-600">{formatCurrencyWhole(budgetProgress.spent)}</p>
+                                        <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)}</p>
                                     </div>
-                                    <div className="w-full bg-slate-200 rounded-full h-4"><div className="bg-primary h-4 rounded-full" style={{ width: `${Math.min(budgetProgress.progress, 100)}%` }}></div></div>
+                                    <div className="w-full md:w-2/3">
+                                        <div className="flex justify-between text-sm font-medium text-slate-600 mb-1">
+                                            <span>{budgetProgress.progress.toFixed(1)}% Used</span>
+                                            <span className={`${budgetProgress.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrencyWhole(budgetProgress.remaining)} {budgetProgress.remaining >= 0 ? 'left' : 'over'}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-4"><div className="bg-primary h-4 rounded-full" style={{ width: `${Math.min(budgetProgress.progress, 100)}%` }}></div></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        // --- NO BUDGET SELECTED VIEW ---
-                        <div className="flex flex-col justify-center text-center">
-                            <h3 className="font-semibold text-slate-500 text-sm mb-2">This Month's Spending</h3>
-                            <p className="text-3xl font-bold text-red-600">{formatCurrencyWhole(currentMonthMetrics.currentMonthTotal)}</p>
-                            <div className={`flex items-center justify-center text-sm font-semibold mt-1 ${currentMonthMetrics.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                {currentMonthMetrics.change >= 0 ? <ArrowTrendingUpIcon className="w-4 h-4 mr-1"/> : <ArrowTrendingDownIcon className="w-4 h-4 mr-1"/>}
-                                {Math.abs(currentMonthMetrics.change).toFixed(1)}% vs last month
+                        ) : (
+                            // --- NO BUDGET SELECTED VIEW ---
+                            <div className="flex flex-col justify-center text-center">
+                                <h3 className="font-semibold text-slate-500 text-sm mb-2">Spending for {formatMonth(selectedMonth)}</h3>
+                                <p className="text-3xl font-bold text-red-600">{formatCurrencyWhole(selectedMonthMetrics.currentMonthTotal)}</p>
+                                <div className={`flex items-center justify-center text-sm font-semibold mt-1 ${selectedMonthMetrics.change <= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {selectedMonthMetrics.change <= 0 ? <ArrowTrendingDownIcon className="w-4 h-4 mr-1"/> : <ArrowTrendingUpIcon className="w-4 h-4 mr-1"/>}
+                                    {Math.abs(selectedMonthMetrics.change).toFixed(1)}% vs last month
+                                </div>
                             </div>
+                        )}
+                    </div>
+                    
+                    {/* --- UNIFIED BUDGET SELECTOR AT THE BOTTOM --- */}
+                    {budgets.length > 0 && (
+                        <div className="pt-4 border-t border-slate-200">
+                            <label htmlFor="budget-select-unified" className="block text-sm font-medium text-slate-600 mb-1">
+                                {selectedBudget ? 'Current Budget:' : 'Compare with a budget:'}
+                            </label>
+                            <select 
+                                id="budget-select-unified" 
+                                value={selectedBudgetId} 
+                                onChange={e => setSelectedBudgetId(e.target.value)} 
+                                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
+                            >
+                                <option value="">{selectedBudget ? '— No Budget —' : 'Select a Budget'}</option>
+                                {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
                         </div>
                     )}
                 </div>
-                
-                {/* --- UNIFIED BUDGET SELECTOR AT THE BOTTOM --- */}
-                {budgets.length > 0 && (
-                    <div className="pt-4 border-t border-slate-200">
-                        <label htmlFor="budget-select-unified" className="block text-sm font-medium text-slate-600 mb-1">
-                            {selectedBudget ? 'Current Budget:' : 'Compare with a budget:'}
-                        </label>
-                        <select 
-                            id="budget-select-unified" 
-                            value={selectedBudgetId} 
-                            onChange={e => setSelectedBudgetId(e.target.value)} 
-                            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
-                        >
-                            <option value="">{selectedBudget ? '— No Budget —' : 'Select a Budget'}</option>
-                            {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
-                    </div>
-                )}
-            </div>
-            <div className="bg-white rounded-xl shadow p-5 flex flex-col ring-1 ring-slate-100">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                    {budgetProgress ? 'Spending vs. Budget' : 'Spending by Category'}
-                </h3>
-                <div className="relative flex-grow"><canvas ref={categoryChartCanvasRef}></canvas></div>
+                <div className="bg-white rounded-xl shadow p-5 flex flex-col ring-1 ring-slate-100 min-h-0">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                        {budgetProgress ? 'Spending vs. Budget' : 'Spending by Category'}
+                    </h3>
+                    <div className="relative flex-grow min-h-0"><canvas ref={categoryChartCanvasRef}></canvas></div>
+                </div>
             </div>
         </div>
 
