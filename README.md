@@ -41,7 +41,10 @@ If you are starting from scratch, it's best to create a new Vite project and the
     ```bash
     cd my-net-worth-app
     ```
-3.  **Copy Files**: Copy all the provided application source files (`.tsx`, `.ts`, `.html`, `.json`) into this new directory, overwriting the template files (like `App.tsx` and `index.css`).
+3.  **Copy Files**:
+    *   Create a `public` directory in your project's root.
+    *   Place the `version.json` file into this new `public` directory.
+    *   Copy all other application source files (`.tsx`, `.ts`, `.html`, etc.) into the project, overwriting the Vite template files (like `App.tsx` and `index.css`).
 4.  **Install Dependencies**: Run the following command to install the necessary packages for Vite and React.
     ```bash
     npm install
@@ -116,8 +119,9 @@ You will be prompted with several questions. Answer them as follows:
 *   **What do you want to use as your public directory?** `dist`
 *   **Configure as a single-page app (rewrite all urls to /index.html)?** `y`
 *   **Set up automatic builds and deploys with GitHub?** `N` (for manual deployment)
+*   **File dist/index.html already exists. Overwrite?** `N` (Do not overwrite your build output).
 
-This will create `firebase.json` and `.firebaserc` files in your project.
+This will create `firebase.json` and `.firebaserc` files in your project. This application now includes base versions of these files to ensure correct deployment settings.
 
 ### 4. Build the Application
 
@@ -139,7 +143,7 @@ After the command completes, it will display the live URL for your application (
 
 ## Versioning
 
-This project uses a simple versioning system managed through the `version.json` file in the root directory.
+This project uses a simple versioning system managed through the `version.json` file. This file must be placed in the `public` directory.
 
 *   `currentVersion`: The version number displayed in the application footer.
 *   `changelog`: An array of objects, where each object contains the version number, release date, and a description of the changes for that version. The description supports Markdown for formatting.
