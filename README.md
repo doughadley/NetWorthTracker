@@ -1,9 +1,10 @@
 
+
 # Net Worth Tracker
 
 A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.
 
-Current Version: **1.12.2**
+Current Version: **1.12.3**
 
 ## Key Features
 
@@ -14,6 +15,7 @@ Current Version: **1.12.2**
 *   **Local-First & Offline Mode**: The application is fully functional without an account. All data is stored privately in your browser's local storage.
 *   **Expense Tracking & Categorization**:
     *   Import transaction history from CSV files (supports Chase, Amex, BofA formats).
+    *   **Smart Expense Import**: Automatically assigns categories and spending types to new transactions based on your history with a vendor.
     *   Categorize spending into a customizable hierarchy (e.g., "Food:Groceries").
     *   Classify expenses as 'Non-Discretionary', 'Discretionary', or 'One-Time' to analyze spending habits.
     *   The Period toggle, Month dropdown, and Budget dropdown are grouped in the top toolbar, allowing you to view data for a selected month or all time.

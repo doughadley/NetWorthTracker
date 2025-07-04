@@ -1,7 +1,7 @@
 
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.12.2
+**Version:** 1.12.3
 **Date:** July 4, 2025
 **Author:** Gemini AI
 
@@ -49,6 +49,7 @@ This is the main dashboard, providing a high-level overview of the user's net wo
 #### 4.2 Expenses Tab
 This tab focuses on tracking and analyzing spending habits.
 *   **CSV Import:** Users can import transaction history from multiple CSV files, with pre-configured formats for Chase, American Express, and Bank of America.
+*   **Smart Expense Import**: The CSV import modal includes an "Advanced Options" section to automatically assign categories and spending types. By default, this is enabled. The system learns from the user's existing transaction history. It identifies the most common category and spending type associated with a vendor (e.g., "Starbucks") and applies them to new transactions from the same vendor.
 *   **AI-Powered Anomaly Detection:** Utilizes the Google Gemini API to analyze a selected month's transactions and highlight potential anomalies, such as unusually large purchases or spending in rare categories.
 *   **Dynamic Monthly Dashboard:**
     *   **View Controls**: The Period toggle ('Selected Month' / 'All Months'), Month dropdown, and Budget dropdown are grouped together in a visually distinct container in the top toolbar. When 'All Months' is selected, the month and budget dropdowns are disabled to clarify the view context.

@@ -131,6 +131,8 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const [showAllMonths, setShowAllMonths] = useState<boolean>(false);
 
   const [matrixFilter, setMatrixFilter] = useState<{ category: string | null; spendingType: SpendingType | 'unclassified' | null; }>({ category: null, spendingType: null });
+  const [autoAssignCategory, setAutoAssignCategory] = useState(true);
+  const [autoAssignSpendingType, setAutoAssignSpendingType] = useState(true);
 
 
   const availableMonths = useMemo(() => {
@@ -485,7 +487,125 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const handleBulkCategoryChange = (newCategoryValue: string) => { if (!newCategoryValue || selectedTxIds.size === 0) return; let categoryToSet = newCategoryValue; if (newCategoryValue === '___CREATE_NEW___') { const newCategoryName = window.prompt('Enter new category name (use "Parent:Child" for sub-categories):'); if (!newCategoryName || !newCategoryName.trim()) { const selectElement = document.getElementById('bulk-category-selector') as HTMLSelectElement; if(selectElement) selectElement.value = ""; return; } categoryToSet = newCategoryName.trim(); } onMassUpdateCategory(Array.from(selectedTxIds), categoryToSet); setSelectedTxIds(new Set()); };
   const handleBulkSpendingTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => { const newSpendingType = e.target.value as SpendingType; if (!newSpendingType || selectedTxIds.size === 0) return; onMassUpdateSpendingType(Array.from(selectedTxIds), newSpendingType); setSelectedTxIds(new Set()); e.target.value = ""; };
   const handleCategoryChange = (transactionId: string, newCategoryValue: string) => { if (newCategoryValue === '___CREATE_NEW___') { const newCategoryName = window.prompt('Enter new category name (use "Parent:Child" for sub-categories).'); if (newCategoryName && newCategoryName.trim()) onUpdateTransactionCategory(transactionId, newCategoryName.trim()); } else { onUpdateTransactionCategory(transactionId, newCategoryValue); } };
-  const handleImportSubmit = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const fileInput = event.currentTarget.elements.namedItem('csvFiles') as HTMLInputElement; const files = fileInput.files; if (!files || files.length === 0) { alert("Please select one or more files to import."); return; } const selectedFormat = formats.find(f => f.id === selectedFormatId); if (!selectedFormat) { alert("Please select a valid import format."); return; } let allNewTransactions: ExpenseTransaction[] = []; let successfulFiles = 0; let failedFiles = 0; const failedFileNames: string[] = []; const fileReadPromises = Array.from(files).map(file => new Promise<{ fileName: string, content: string }>((resolve, reject) => { const reader = new FileReader(); reader.onload = (e) => resolve({ fileName: file.name, content: e.target?.result as string }); reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`)); reader.readAsText(file); })); const readResults = await Promise.allSettled(fileReadPromises); readResults.forEach(result => { if (result.status === 'fulfilled') { try { const parsedTxs = parseCsv(result.value.content, selectedFormat); allNewTransactions.push(...parsedTxs); successfulFiles++; } catch (error) { failedFiles++; failedFileNames.push(result.value.fileName); console.error(`Error processing ${result.value.fileName}:`, error); } } else { failedFiles++; console.error(`Error reading file:`, result.reason); } }); let importResult = { newCount: 0, duplicateCount: 0 }; if (allNewTransactions.length > 0) importResult = onTransactionsImported(allNewTransactions); let alertMessage = `Import complete. Imported ${importResult.newCount} new transactions from ${successfulFiles} files.`; if (importResult.duplicateCount > 0) alertMessage += `\nSkipped ${importResult.duplicateCount} duplicate transaction(s).`; if (failedFiles > 0) alertMessage += `\n\nFailed to import ${failedFiles} files: ${failedFileNames.join(', ')}. See console for details.`; alert(alertMessage); setIsImportModalOpen(false); };
+  
+  const handleImportSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const fileInput = event.currentTarget.elements.namedItem('csvFiles') as HTMLInputElement;
+    const files = fileInput.files;
+    if (!files || files.length === 0) {
+        alert("Please select one or more files to import.");
+        return;
+    }
+    const selectedFormat = formats.find(f => f.id === selectedFormatId);
+    if (!selectedFormat) {
+        alert("Please select a valid import format.");
+        return;
+    }
+
+    // 1. Build memory from existing transactions if auto-assignment is on
+    const vendorMemory: Map<string, { category?: string, spendingType?: SpendingType }> = new Map();
+    if (autoAssignCategory || autoAssignSpendingType) {
+        const vendorDetails: Map<string, {
+            categoryCounts: Record<string, number>;
+            spendingTypeCounts: Record<string, number>;
+        }> = new Map();
+
+        transactions.forEach(tx => {
+            const vendor = getBaseVendor(tx.description);
+            if (!vendor) return;
+
+            if (!vendorDetails.has(vendor)) {
+                vendorDetails.set(vendor, { categoryCounts: {}, spendingTypeCounts: {} });
+            }
+            const details = vendorDetails.get(vendor)!;
+
+            if (tx.category && tx.category !== 'Uncategorized') {
+                details.categoryCounts[tx.category] = (details.categoryCounts[tx.category] || 0) + 1;
+            }
+
+            if (tx.spendingType) {
+                details.spendingTypeCounts[tx.spendingType] = (details.spendingTypeCounts[tx.spendingType] || 0) + 1;
+            }
+        });
+
+        for (const [vendor, details] of vendorDetails.entries()) {
+            const memoryEntry: { category?: string, spendingType?: SpendingType } = {};
+
+            if (autoAssignCategory) {
+                const topCategory = Object.entries(details.categoryCounts).sort((a, b) => b[1] - a[1])[0];
+                if (topCategory) {
+                    memoryEntry.category = topCategory[0];
+                }
+            }
+            if (autoAssignSpendingType) {
+                const topSpendingType = Object.entries(details.spendingTypeCounts).sort((a, b) => b[1] - a[1])[0];
+                if (topSpendingType) {
+                    memoryEntry.spendingType = topSpendingType[0] as SpendingType;
+                }
+            }
+            if (memoryEntry.category || memoryEntry.spendingType) {
+                vendorMemory.set(vendor, memoryEntry);
+            }
+        }
+    }
+
+
+    let allNewTransactions: ExpenseTransaction[] = [];
+    let successfulFiles = 0;
+    let failedFiles = 0;
+    const failedFileNames: string[] = [];
+    const fileReadPromises = Array.from(files).map(file => new Promise<{ fileName: string, content: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ fileName: file.name, content: e.target?.result as string });
+        reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+        reader.readAsText(file);
+    }));
+    const readResults = await Promise.allSettled(fileReadPromises);
+    readResults.forEach(result => {
+        if (result.status === 'fulfilled') {
+            try {
+                const parsedTxs = parseCsv(result.value.content, selectedFormat);
+                
+                // 2. Apply memory to new transactions
+                parsedTxs.forEach(tx => {
+                    const vendor = getBaseVendor(tx.description);
+                    if (vendor && vendorMemory.has(vendor)) {
+                        const memory = vendorMemory.get(vendor)!;
+                        if (autoAssignCategory && memory.category) {
+                            tx.category = memory.category;
+                        }
+                        if (autoAssignSpendingType && memory.spendingType) {
+                            tx.spendingType = memory.spendingType;
+                        }
+                    }
+                });
+
+                allNewTransactions.push(...parsedTxs);
+                successfulFiles++;
+            } catch (error) {
+                failedFiles++;
+                failedFileNames.push(result.value.fileName);
+                console.error(`Error processing ${result.value.fileName}:`, error);
+            }
+        } else {
+            failedFiles++;
+            console.error(`Error reading file:`, result.reason);
+        }
+    });
+    let importResult = { newCount: 0, duplicateCount: 0 };
+    if (allNewTransactions.length > 0) {
+        importResult = onTransactionsImported(allNewTransactions);
+    }
+    let alertMessage = `Import complete. Imported ${importResult.newCount} new transactions from ${successfulFiles} files.`;
+    if (importResult.duplicateCount > 0) {
+        alertMessage += `\nSkipped ${importResult.duplicateCount} duplicate transaction(s).`;
+    }
+    if (failedFiles > 0) {
+        alertMessage += `\n\nFailed to import ${failedFiles} files: ${failedFileNames.join(', ')}. See console for details.`;
+    }
+    alert(alertMessage);
+    setIsImportModalOpen(false);
+};
   
   const CategorySelector: React.FC<{ value: string; onChange: (value: string) => void; className?: string; id?: string; }> = ({ value, onChange, className, id }) => ( <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className} onClick={(e) => e.stopPropagation()}> <option value="">Change category...</option> {Object.entries(categoryStructure).sort(([a], [b]) => a.localeCompare(b)).map(([parent, children]) =>( <optgroup key={parent} label={parent}> <option value={parent}>{parent}</option> {children.map(child => <option key={`${parent}:${child}`} value={`${parent}:${child}`}>&nbsp;&nbsp;{child}</option>)} </optgroup> ))} <optgroup label="Actions"><option value="___CREATE_NEW___">Create New...</option></optgroup> </select> );
 
@@ -623,7 +743,45 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
       </div>
       {selectedTxIds.size > 0 && (<div className="fixed bottom-0 left-0 right-0 bg-slate-800 text-white p-3 shadow-[0_-2px_10px_rgba(0,0,0,0.2)] z-40 flex items-center justify-between transition-transform transform-gpu animate-slide-up"> <span className="text-sm font-medium">{selectedTxIds.size} item(s) selected</span> <div className="flex items-center gap-4"> <CategorySelector id="bulk-category-selector" value="" onChange={handleBulkCategoryChange} className="bg-slate-700 text-white rounded-md p-2 text-sm focus:ring-primary" /> <select id="bulk-spending-type-selector" value="" onChange={handleBulkSpendingTypeChange} className="bg-slate-700 text-white rounded-md p-2 text-sm focus:ring-primary"> <option value="" disabled>Set Spending Type...</option> <option value="non-discretionary">Non-Discretionary</option> <option value="discretionary">Discretionary</option> <option value="one-time">One-Time</option> </select> <button onClick={() => setSelectedTxIds(new Set())} className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-semibold"> Deselect All </button> </div> </div>)}
       <Modal isOpen={isAnalysisResultModalOpen} onClose={() => setIsAnalysisResultModalOpen(false)} title="Analysis Complete"> <p className="text-sm text-slate-700">{analysisResultText}</p> <div className="mt-5 flex justify-end"> <button onClick={() => setIsAnalysisResultModalOpen(false)} className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"> OK </button> </div> </Modal>
-      <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Import Expense CSV Files"> <form onSubmit={handleImportSubmit} className="space-y-4"> <div> <label htmlFor="format-select" className="block text-sm font-medium text-slate-700">Select Import Format</label> <select id="format-select" value={selectedFormatId} onChange={(e) => setSelectedFormatId(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md bg-white text-black"> {formats.map(f => ( <option key={f.id} value={f.id}>{f.name}</option> ))} </select> </div> <div> <label htmlFor="csvFiles" className="block text-sm font-medium text-slate-700">Choose CSV File(s)</label> <input type="file" id="csvFiles" name="csvFiles" multiple required accept=".csv,text/csv" className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-sky-200" /> </div> <div className="flex justify-end space-x-3 pt-4"> <button type="button" onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md shadow-sm">Cancel</button> <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-md shadow-sm">Import Files</button> </div> </form> </Modal>
+      <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Import Expense CSV Files"> 
+        <form onSubmit={handleImportSubmit} className="space-y-4"> 
+            <div> 
+                <label htmlFor="format-select" className="block text-sm font-medium text-slate-700">Select Import Format</label> 
+                <select id="format-select" value={selectedFormatId} onChange={(e) => setSelectedFormatId(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md bg-white text-black"> {formats.map(f => ( <option key={f.id} value={f.id}>{f.name}</option> ))} </select> 
+            </div> 
+            <div> 
+                <label htmlFor="csvFiles" className="block text-sm font-medium text-slate-700">Choose CSV File(s)</label> 
+                <input type="file" id="csvFiles" name="csvFiles" multiple required accept=".csv,text/csv" className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-sky-200" /> 
+            </div>
+            <div className="pt-4 border-t">
+                <h4 className="text-sm font-medium text-slate-700 mb-2">Advanced Options</h4>
+                <div className="space-y-2">
+                    <label className="flex items-center">
+                        <input 
+                            type="checkbox" 
+                            checked={autoAssignCategory} 
+                            onChange={(e) => setAutoAssignCategory(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                        />
+                        <span className="ml-2 text-sm text-slate-600">Automatically assign categories based on vendor history</span>
+                    </label>
+                    <label className="flex items-center">
+                        <input 
+                            type="checkbox" 
+                            checked={autoAssignSpendingType} 
+                            onChange={(e) => setAutoAssignSpendingType(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                        />
+                        <span className="ml-2 text-sm text-slate-600">Automatically assign spending types based on vendor history</span>
+                    </label>
+                </div>
+              </div>
+            <div className="flex justify-end space-x-3 pt-4"> 
+                <button type="button" onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md shadow-sm">Cancel</button> 
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-md shadow-sm">Import Files</button> 
+            </div> 
+        </form> 
+      </Modal>
     </>
   );
 };

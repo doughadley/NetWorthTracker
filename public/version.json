@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.12.2",
+  "currentVersion": "1.12.3",
   "changelog": [
+    {
+      "version": "1.12.3",
+      "date": "2025-07-04",
+      "description": "### ✨ New Features\n\n*   **Smart Expense Import**: When importing transactions, the app can now automatically assign categories and spending types based on your history with that vendor, significantly speeding up the categorization process. This is on by default and can be toggled in the import window."
+    },
     {
       "version": "1.12.2",
       "date": "2025-07-04",

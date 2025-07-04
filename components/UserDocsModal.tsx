@@ -1,6 +1,8 @@
+
+
 import React from 'react';
 import Modal from './Modal';
-import { Marked } from 'marked';
+import { marked } from 'marked';
 
 interface UserDocsModalProps {
   isOpen: boolean;
@@ -54,6 +56,13 @@ This is where you can import, categorize, and analyze your transactions.
 2.  Select your bank's format from the dropdown (e.g., Chase, American Express).
 3.  Choose the CSV file(s) you downloaded from your bank.
 4.  Click **"Import Files"**. The app will automatically add new transactions and skip any duplicates.
+
+#### Smart Imports (Auto-Categorization)
+To save you time, the import process includes a smart assignment feature (enabled by default in the import window's "Advanced Options").
+
+*   **How it Works**: When you import new transactions, the application looks at the vendor/description (e.g., "Netflix", "Shell Gas"). It then checks your past transactions to see how you've most frequently categorized items from that same vendor.
+*   **Automatic Assignment**: It automatically applies the most common **Category** and **Spending Type** to the new transactions.
+*   **Full Control**: If you prefer to categorize manually, you can uncheck the "Automatically assign..." boxes before you import.
 
 #### Categorizing & Classifying
 *   **Category**: Use the dropdown next to each transaction to assign it to a category. You can create new categories directly from this dropdown.
@@ -128,49 +137,9 @@ This is your hub for data management.
 const UserDocsModal: React.FC<UserDocsModalProps> = ({ isOpen, onClose }) => {
 
   const createMarkup = (markdownText: string) => {
-    // Define a custom renderer object.
-    const renderer = {
-      heading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6) {
-        const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
-        if (level === 2) {
-          return `<h2 id="${escapedText}" class="text-2xl font-bold text-primary mt-6 mb-3 border-b-2 border-slate-200 pb-2">${text}</h2>`;
-        }
-        if (level === 3) {
-          return `<h3 id="${escapedText}" class="text-xl font-semibold text-slate-800 mt-4 mb-2">${text}</h3>`;
-        }
-        if (level === 4) {
-          return `<h4 id="${escapedText}" class="text-lg font-semibold text-slate-700 mt-3 mb-1">${text}</h4>`;
-        }
-        return `<h${level} id="${escapedText}" class="font-bold">${text}</h${level}>`;
-      },
-      paragraph(text: string) {
-        return `<p class="mb-3 text-slate-700 leading-relaxed">${text}</p>`;
-      },
-      list(body: string, ordered: boolean) {
-        const tag = ordered ? 'ol' : 'ul';
-        const listClass = ordered ? 'list-decimal list-inside space-y-2' : 'list-disc list-inside space-y-2';
-        return `<${tag} class="${listClass} mb-4">${body}</${tag}>`;
-      },
-      listitem(text: string) {
-        return `<li class="pl-2">${text}</li>`;
-      },
-      strong(text: string) {
-        return `<strong class="font-semibold text-slate-800">${text}</strong>`;
-      },
-      codespan(code: string) {
-        return `<code class="bg-slate-200 text-slate-800 p-1 rounded text-xs font-mono">${code}</code>`;
-      },
-      hr() {
-        return '<hr class="my-6 border-slate-200" />';
-      }
-    };
-    
-    // Create a new Marked instance with the custom renderer.
-    const markedInstance = new Marked({ renderer });
-
-    // Parse the markdown using the instance.
-    const rawMarkup = markedInstance.parse(markdownText, { gfm: true, breaks: true });
-    
+    // Using the default marked parser to ensure stability.
+    // The 'prose' Tailwind classes will still provide basic styling.
+    const rawMarkup = marked.parse(markdownText, { gfm: true, breaks: true });
     return { __html: rawMarkup as string };
   };
 
@@ -178,7 +147,7 @@ const UserDocsModal: React.FC<UserDocsModalProps> = ({ isOpen, onClose }) => {
     <Modal isOpen={isOpen} onClose={onClose} title="User Guide" maxWidth="max-w-4xl">
       <div className="max-h-[80vh] overflow-y-auto pr-4">
         <div
-          className="prose prose-sm max-w-none"
+          className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-slate-800 prose-ul:list-disc prose-ul:pl-5 prose-strong:font-semibold prose-p:text-slate-700 prose-headings:text-primary prose-h2:border-b prose-h2:border-slate-200 prose-h2:pb-2"
           dangerouslySetInnerHTML={createMarkup(docsContent)}
         />
       </div>
