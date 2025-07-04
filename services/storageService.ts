@@ -51,6 +51,11 @@ export const saveInstitutions = (institutions: Institution[], userId: string | n
   localStorage.setItem(key, JSON.stringify(institutions));
 };
 
+export const deleteInstitutions = (userId: string | null): void => {
+    const key = getStorageKey(INSTITUTIONS_KEY, userId);
+    localStorage.removeItem(key);
+};
+
 export const loadAccounts = (userId: string | null): Account[] => {
   const key = getStorageKey(ACCOUNTS_KEY, userId);
   const data = localStorage.getItem(key);
@@ -78,6 +83,11 @@ export const saveAccounts = (accounts: Account[], userId: string | null): void =
   localStorage.setItem(key, JSON.stringify(accounts));
 };
 
+export const deleteAccounts = (userId: string | null): void => {
+    const key = getStorageKey(ACCOUNTS_KEY, userId);
+    localStorage.removeItem(key);
+};
+
 export const loadBudgets = (userId: string | null): Budget[] => {
   const key = getStorageKey(BUDGETS_KEY, userId);
   const data = localStorage.getItem(key);
@@ -94,6 +104,11 @@ export const loadBudgets = (userId: string | null): Budget[] => {
 export const saveBudgets = (budgets: Budget[], userId: string | null): void => {
   const key = getStorageKey(BUDGETS_KEY, userId);
   localStorage.setItem(key, JSON.stringify(budgets));
+};
+
+export const deleteBudgets = (userId: string | null): void => {
+    const key = getStorageKey(BUDGETS_KEY, userId);
+    localStorage.removeItem(key);
 };
 
 export const loadExpenses = (userId: string | null): ExpenseTransaction[] => {
@@ -114,6 +129,12 @@ export const saveExpenses = (transactions: ExpenseTransaction[], userId: string 
     localStorage.setItem(key, JSON.stringify(transactions));
 };
 
+export const deleteExpenses = (userId: string | null): void => {
+    const key = getStorageKey(EXPENSES_KEY, userId);
+    localStorage.removeItem(key);
+};
+
+
 export const loadHistoricalData = (userId: string | null): HistoricalDataPoint[] => {
   const key = getStorageKey(HISTORICAL_DATA_KEY, userId);
   const data = localStorage.getItem(key);
@@ -130,6 +151,11 @@ export const loadHistoricalData = (userId: string | null): HistoricalDataPoint[]
 export const saveHistoricalData = (data: HistoricalDataPoint[], userId: string | null): void => {
   const key = getStorageKey(HISTORICAL_DATA_KEY, userId);
   localStorage.setItem(key, JSON.stringify(data));
+};
+
+export const deleteHistoricalData = (userId: string | null): void => {
+    const key = getStorageKey(HISTORICAL_DATA_KEY, userId);
+    localStorage.removeItem(key);
 };
 
 export const loadCategoryStructure = (userId: string | null): CategoryHierarchy => {
@@ -154,6 +180,11 @@ export const saveCategoryStructure = (categories: CategoryHierarchy, userId: str
     localStorage.setItem(key, JSON.stringify(categories));
 };
 
+export const deleteCategoryStructure = (userId: string | null): void => {
+    const key = getStorageKey(CATEGORIES_KEY, userId);
+    localStorage.removeItem(key);
+};
+
 export const loadCategoryInclusionSettings = (userId: string | null): CategoryInclusionSettings => {
     const key = getStorageKey(CATEGORY_INCLUSION_KEY, userId);
     const data = localStorage.getItem(key);
@@ -173,4 +204,9 @@ export const loadCategoryInclusionSettings = (userId: string | null): CategoryIn
 export const saveCategoryInclusionSettings = (settings: CategoryInclusionSettings, userId: string | null): void => {
     const key = getStorageKey(CATEGORY_INCLUSION_KEY, userId);
     localStorage.setItem(key, JSON.stringify(settings));
+};
+
+export const deleteCategoryInclusionSettings = (userId: string | null): void => {
+    const key = getStorageKey(CATEGORY_INCLUSION_KEY, userId);
+    localStorage.removeItem(key);
 };

@@ -1,7 +1,15 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Institution, Account, StockHolding, StockPriceInfo, ExpenseTransaction, Budget, BudgetItem, HistoricalDataPoint, CategoryHierarchy, CategoryInclusionSettings } from './types';
-import { loadInstitutions, saveInstitutions, loadAccounts, saveAccounts, loadExpenses, saveExpenses, loadBudgets, saveBudgets, loadHistoricalData, saveHistoricalData, loadCategoryStructure, saveCategoryStructure, loadCategoryInclusionSettings, saveCategoryInclusionSettings } from './services/storageService';
+import { 
+    loadInstitutions, saveInstitutions, deleteInstitutions,
+    loadAccounts, saveAccounts, deleteAccounts,
+    loadExpenses, saveExpenses, deleteExpenses,
+    loadBudgets, saveBudgets, deleteBudgets,
+    loadHistoricalData, saveHistoricalData, deleteHistoricalData,
+    loadCategoryStructure, saveCategoryStructure, deleteCategoryStructure,
+    loadCategoryInclusionSettings, saveCategoryInclusionSettings, deleteCategoryInclusionSettings
+} from './services/storageService';
 import { onAuthChange, signUpWithEmail, signInWithEmail, logout, type User } from './services/firebaseService';
 import { fetchStockPrices } from './services/stockApiService';
 import { generateId } from './utils/idGenerator';
@@ -598,6 +606,38 @@ const App: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const handleDeleteAssetsData = () => {
+    const userId = authState.user?.uid || null;
+    deleteInstitutions(userId);
+    deleteAccounts(userId);
+    deleteHistoricalData(userId);
+
+    // Reset state
+    setInstitutions([]);
+    setAccounts([]);
+    setHistoricalData([]);
+    setExpandedInstitutions(new Set());
+    setExpandedAccounts(new Set());
+
+    alert('All assets, accounts, and historical data have been deleted.');
+  };
+
+  const handleDeleteExpensesData = () => {
+    const userId = authState.user?.uid || null;
+    deleteExpenses(userId);
+    deleteBudgets(userId);
+    deleteCategoryStructure(userId);
+    deleteCategoryInclusionSettings(userId);
+    
+    // Reset state
+    setTransactions([]);
+    setBudgets([]);
+    setCategoryStructure({});
+    setCategoryInclusion({});
+
+    alert('All expenses, budgets, and category data have been deleted.');
+  };
+
   const handleHistoricalDataUpdate = (newData: HistoricalDataPoint[]) => {
       setHistoricalData(newData);
   };
@@ -1103,6 +1143,8 @@ const App: React.FC = () => {
             onExportExpensesData={handleExportExpensesData}
             onImportExpensesClick={() => handleImportClick('expenses')}
             onImportHistoricalClick={() => handleImportClick('historical')}
+            onDeleteAssetsData={handleDeleteAssetsData}
+            onDeleteExpensesData={handleDeleteExpensesData}
           />
         );
       default:

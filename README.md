@@ -2,7 +2,7 @@
 
 A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.
 
-Current Version: **1.6.0**
+Current Version: **1.7.0**
 
 ## Key Features
 
@@ -15,6 +15,7 @@ Current Version: **1.6.0**
 *   **AI-Powered Insights**: Use the Google Gemini API to analyze expenses and automatically identify spending anomalies.
 *   **Budgeting Tools**: Create and manage detailed budgets based on your historical spending data.
 *   **Full Data Portability**: Export and import all your assets, expenses, and historical data in JSON format.
+*   **Safe Data Deletion**: Confirmation dialogs require users to type "DELETE" before removing major data sets, preventing accidental loss.
 *   **Printable Reports**: Generate clean, printable reports for your budgets and a complete summary of your assets.
 *   **Versioning**: Track application updates through the "What's New" changelog in the footer.
 

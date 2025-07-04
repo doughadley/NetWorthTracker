@@ -1,7 +1,7 @@
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.0
-**Date:** July 4, 2024
+**Version:** 1.1
+**Date:** July 3, 2024
 **Author:** Gemini AI
 
 ### 1. Introduction & Overview
@@ -75,6 +75,7 @@ Provides tools for managing the expense category hierarchy.
 #### 4.5 Data Tab
 A centralized hub for data import/export and advanced management.
 *   **Backup & Restore:** Provides buttons to export and import "Assets Data" and "Expenses Data" separately, allowing for complete backup and restoration of the application state.
+*   **Destructive Action Confirmation:** Deleting either "Assets Data" or "Expenses Data" prompts the user with a confirmation modal. To proceed, the user must type the word "DELETE", preventing accidental data loss.
 *   **Historical Data Import:** Allows back-filling of historical data by importing daily account values from a specified CSV format.
 *   **Raw Data Editor:** A text area allows advanced users to directly view and edit the raw JSON of their net worth history for manual corrections.
 

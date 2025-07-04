@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.6.0",
+  "currentVersion": "1.7.0",
   "changelog": [
+    {
+      "version": "1.7.0",
+      "date": "2025-07-03",
+      "description": "### ✨ New Features\n\n*   **Data Deletion Safety**: Added confirmation dialogs for deleting asset and expense data to prevent accidental data loss. Users must type \"DELETE\" to confirm."
+    },
     {
       "version": "1.6.0",
       "date": "2025-07-01",
