@@ -1,6 +1,6 @@
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.11.0
+**Version:** 1.12.0
 **Date:** July 4, 2025
 **Author:** Gemini AI
 
@@ -87,6 +87,7 @@ A centralized hub for data import/export and advanced management.
 
 #### 4.6 System-Wide Features
 *   **Authentication:** Optional user authentication via Firebase (Email/Password). If not used, the app functions in a local-only mode.
+*   **User Documentation Modal:** A modal containing a comprehensive user guide is accessible from the application footer. It provides detailed, step-by-step instructions on how to use all major features of the application.
 *   **Versioning:** The app version is displayed in the footer, which opens a "What's New" changelog modal.
 
 ---

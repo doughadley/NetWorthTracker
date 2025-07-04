@@ -2,7 +2,7 @@
 
 A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.
 
-Current Version: **1.11.0**
+Current Version: **1.12.0**
 
 ## Key Features
 
@@ -22,6 +22,7 @@ Current Version: **1.11.0**
 *   **Full Data Portability**: Export and import all your assets, expenses, and historical data in JSON format.
 *   **Safe Data Deletion**: Confirmation dialogs require users to type "DELETE" before removing major data sets, preventing accidental loss.
 *   **Printable Reports**: Generate clean, printable reports for your budgets, a complete summary of your assets, and a detailed monthly expense report.
+*   **User Documentation**: A detailed user guide is accessible directly within the app via a "User Docs" link in the footer.
 *   **Versioning**: Track application updates through the "What's New" changelog in the footer.
 
 ---

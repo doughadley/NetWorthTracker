@@ -26,6 +26,7 @@ import CategoryView from './components/CategoryView';
 import MassUpdateModal from './components/MassUpdateModal';
 import AuthForm from './components/AuthForm';
 import ChangelogModal from './components/ChangelogModal';
+import UserDocsModal from './components/UserDocsModal';
 import { parseCategory, buildCategoryHierarchy } from './utils/categoryUtils';
 import PrintableBudgetReport from './components/PrintableBudgetReport';
 import PrintableAssetsReport from './components/PrintableAssetsReport';
@@ -75,6 +76,7 @@ const App: React.FC = () => {
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState<boolean>(false);
+  const [isUserDocsModalOpen, setIsUserDocsModalOpen] = useState<boolean>(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo>({ currentVersion: '', changelog: [] });
 
 
@@ -1288,6 +1290,11 @@ const App: React.FC = () => {
             changelog={versionInfo.changelog}
         />
 
+        <UserDocsModal
+            isOpen={isUserDocsModalOpen}
+            onClose={() => setIsUserDocsModalOpen(false)}
+        />
+
         <MassUpdateModal
           isOpen={isMassUpdateModalOpen}
           onClose={handleCloseMassUpdateModal}
@@ -1313,11 +1320,18 @@ const App: React.FC = () => {
 
         <footer className="text-center py-4 mt-8 border-t border-slate-300">
             <p className="text-sm text-slate-500">
-                &copy; {new Date().getFullYear()} Net Worth Tracker. 
+                &copy; {new Date().getFullYear()} Net Worth Tracker.
+                <button
+                    onClick={() => setIsUserDocsModalOpen(true)}
+                    className="ml-4 text-primary hover:underline focus:outline-none"
+                    aria-label="View user documentation"
+                >
+                    User Docs
+                </button>
                 {versionInfo.currentVersion && (
                     <button 
                         onClick={() => setIsChangelogModalOpen(true)}
-                        className="ml-2 text-primary hover:underline focus:outline-none"
+                        className="ml-4 text-primary hover:underline focus:outline-none"
                         aria-label="View changelog"
                     >
                         v{versionInfo.currentVersion}
