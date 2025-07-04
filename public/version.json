@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.12.3",
+  "currentVersion": "1.12.4",
   "changelog": [
+    {
+      "version": "1.12.4",
+      "date": "2025-07-04",
+      "description": "### 🐛 Bug Fixes\n\n*   **Dashboard Consistency**: Corrected a calculation bug where the 'Spending for Month' card would show an incorrect total when a budget was selected. The card now consistently displays the total net spending for the month, matching the value in the transaction list."
+    },
     {
       "version": "1.12.3",
       "date": "2025-07-04",

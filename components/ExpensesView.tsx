@@ -473,12 +473,31 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   
   const budgetProgress = useMemo(() => {
     if (showAllMonths || !selectedBudget) return null;
+
+    const totalMonthSpent = kpiMetrics.total; // Use the already calculated total for the month.
+
+    // Calculate spending within budgeted categories for the progress bar.
     const budgetMap = new Map(selectedBudget.items.map(i => [i.category, i.amount]));
+    const spentInBudgetedCategories = Math.abs(transactionsForDashboard.reduce((sum, tx) => {
+        if (tx.amount < 0) { // Only count expenses.
+            const { parent, child } = parseCategory(tx.category);
+            const subCategory = child ? `${parent}:${child}` : parent;
+            if (budgetMap.has(parent) || budgetMap.has(subCategory)) {
+                return sum + tx.amount;
+            }
+        }
+        return sum;
+    }, 0));
+
     const budgetTotal = selectedBudget.items.reduce((sum, i) => sum + i.amount, 0);
-    const netExpense = transactionsForSelectedMonth.reduce((sum, tx) => { const { parent, child } = parseCategory(tx.category); const subCategory = child ? `${parent}:${child}` : parent; if(budgetMap.has(parent) || budgetMap.has(subCategory)) return sum + tx.amount; return sum; }, 0);
-    const spentTotal = Math.abs(netExpense);
-    return { spent: spentTotal, total: budgetTotal, remaining: budgetTotal - spentTotal, progress: budgetTotal > 0 ? (spentTotal / budgetTotal) * 100 : 0 };
-  }, [showAllMonths, selectedBudget, transactionsForSelectedMonth]);
+
+    return {
+        spent: totalMonthSpent, // The main display value.
+        total: budgetTotal, // The total budget amount.
+        remaining: budgetTotal - spentInBudgetedCategories,
+        progress: budgetTotal > 0 ? (spentInBudgetedCategories / budgetTotal) * 100 : 0
+    };
+  }, [showAllMonths, selectedBudget, kpiMetrics.total, transactionsForDashboard]);
   
   // -- SELECTION & IMPORT HANDLERS --
   const handleSelectionChange = (id: string, isSelected: boolean) => setSelectedTxIds(prev => { const newSet = new Set(prev); if (isSelected) newSet.add(id); else newSet.delete(id); return newSet; });
@@ -674,7 +693,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                                     <div className="w-full">
                                         <p className="text-sm text-slate-500">Spent This Month</p>
                                         <p className="text-4xl font-bold text-red-600">{formatCurrencyWhole(budgetProgress.spent)}</p>
-                                        <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)}</p>
+                                        <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)} budget</p>
                                     </div>
                                     <div className="w-full">
                                         <div className="flex justify-between text-sm font-medium text-slate-600 mb-1"> <span>{budgetProgress.progress.toFixed(1)}% Used</span> <span className={`${budgetProgress.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}> {formatCurrencyWhole(budgetProgress.remaining)} {budgetProgress.remaining >= 0 ? 'left' : 'over'} </span> </div>

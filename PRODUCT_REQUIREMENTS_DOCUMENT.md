@@ -1,7 +1,7 @@
 
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.12.3
+**Version:** 1.12.4
 **Date:** July 4, 2025
 **Author:** Gemini AI
 
