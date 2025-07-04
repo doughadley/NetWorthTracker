@@ -1,15 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
-
-// Marked is now loaded globally from a script tag in index.html.
-// We declare it here to inform TypeScript about its existence on the window object.
-declare global {
-  interface Window {
-    marked: {
-      parse: (markdown: string, options?: any) => string;
-    };
-  }
-}
+import { marked } from 'marked';
 
 interface ChangelogEntry {
   version: string;
@@ -26,14 +17,7 @@ interface ChangelogModalProps {
 
 const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose, changelog }) => {
   
-  // Access marked from the window object at render time.
-  const marked = window.marked;
-
   const createMarkup = (markdownText: string) => {
-    if (!marked) {
-        // Fallback if the library fails to load
-        return { __html: '<p>Changelog content could not be displayed because the Markdown library failed to load.</p>' };
-    }
     const rawMarkup = marked.parse(markdownText, { breaks: true, gfm: true });
     return { __html: rawMarkup as string };
   };

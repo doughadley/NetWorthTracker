@@ -1,23 +1,22 @@
+import { initializeApp, getApp, getApps } from "firebase/app";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User as FirebaseUser,
+  type AuthError,
+} from "firebase/auth";
 import { firebaseConfig } from "../firebaseConfig";
 
-// Firebase is loaded globally via script tags in index.html.
-// To avoid Vite's "Failed to resolve import" error, we must not use
-// 'import' statements for firebase. We declare it as a global 'any' type.
-// This is a workaround for the persistent module resolution issues.
-declare var firebase: any;
+// Re-export the User type for other files to use.
+export type User = FirebaseUser;
 
-// Re-export the User type for other files to use. It's now 'any'
-// to align with the global declaration above.
-export type User = any;
-type AuthError = any;
-
-// Initialize Firebase using the global script.
-// The compat script ensures it's only initialized once.
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-
-const auth = firebase.auth();
+// Initialize Firebase only once to avoid re-initialization errors
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
 
 const getAuthErrorMessage = (errorCode: string): string => {
   switch (errorCode) {
@@ -41,10 +40,10 @@ const getAuthErrorMessage = (errorCode: string): string => {
 
 const signUpWithEmail = async (email: string, password: string, displayName: string): Promise<{ success: boolean; error?: string }> => {
   try {
-    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    // After user is created, update their profile with the display name
     if (userCredential.user) {
-        // Use the updateProfile method on the user object (v8 style)
-        await userCredential.user.updateProfile({ displayName });
+      await updateProfile(userCredential.user, { displayName });
     }
     return { success: true };
   } catch (error) {
@@ -56,7 +55,7 @@ const signUpWithEmail = async (email: string, password: string, displayName: str
 
 const signInWithEmail = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
   try {
-    await auth.signInWithEmailAndPassword(email, password);
+    await signInWithEmailAndPassword(auth, email, password);
     return { success: true };
   } catch (error) {
     const authError = error as AuthError;
@@ -68,7 +67,7 @@ const signInWithEmail = async (email: string, password: string): Promise<{ succe
 
 const logout = async () => {
   try {
-    await auth.signOut();
+    await signOut(auth);
   } catch (error) {
     console.error("Error signing out: ", error);
     alert("Error signing out. Please check the console for more details.");
@@ -76,7 +75,7 @@ const logout = async () => {
 };
 
 const onAuthChange = (callback: (user: User | null) => void) => {
-  return auth.onAuthStateChanged(callback);
+  return onAuthStateChanged(auth, callback);
 };
 
-export { auth, onAuthChange, signUpWithEmail, signInWithEmail, logout };
+export { onAuthChange, signUpWithEmail, signInWithEmail, logout };

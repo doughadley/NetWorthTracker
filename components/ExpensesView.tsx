@@ -1,6 +1,3 @@
-
-
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -56,7 +53,7 @@ const SparklesIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 );
 const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
-    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625l6.28-10.875ZM10 14.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1.5-5.25a.75.75 0 0 0-1.5 0v2.5a.75.75 0 0 0 1.5 0v-2.5Z" clipRule="evenodd" />
+    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625l6.28-10.875ZM10 14.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1.5-5.25a.75.75 0 0 0-1.5 0v2.5a.75.75 0 0 0 1.5 0v-2.5Z" clipRule="evenodd" />
   </svg>
 );
 
@@ -254,11 +251,13 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     setExpenseAnomalies({});
 
     try {
-        const apiKey = import.meta.env.VITE_API_KEY;
-        if (!apiKey) {
-            throw new Error("VITE_API_KEY is not defined in the environment. Please configure it in your .env file.");
+        // Note: Using import.meta.env.VITE_API_KEY which is the standard for Vite projects.
+        // This makes the API key available on the client-side during development and build.
+        // It is used instead of process.env.API_KEY which is typically for Node.js environments.
+        if (!import.meta.env.VITE_API_KEY) {
+            throw new Error("VITE_API_KEY is not defined in the environment. Please configure it.");
         }
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
         
         const transactionsForPrompt = transactionsForMonth.map(tx => ({
             id: tx.id,
