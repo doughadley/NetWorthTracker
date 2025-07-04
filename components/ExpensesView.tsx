@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings, SpendingType } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -11,6 +12,7 @@ import { parseCategory } from '../utils/categoryUtils';
 import { getBaseVendor } from '../utils/vendorUtils';
 import { Chart } from 'chart.js/auto';
 import { GoogleGenAI } from '@google/genai';
+import SpendingTypeMatrix from './SpendingTypeMatrix';
 
 // --- ICONS ---
 const ArrowUpTrayIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -100,6 +102,8 @@ const categoryColors = [
 ];
 
 type ChartView = 'grouped' | 'stacked';
+type DashboardCardView = 'chart' | 'matrix';
+
 
 const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransactionsImported, budgets, onUpdateTransactionCategory, onUpdateTransactionSpendingType, onMassUpdateCategory, onMassUpdateSpendingType, categoryStructure, categoryInclusion, onPrintExpenseReport }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -125,6 +129,8 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
 
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [chartView, setChartView] = useState<ChartView>('stacked');
+  const [dashboardCardView, setDashboardCardView] = useState<DashboardCardView>('chart');
+
 
   const availableMonths = useMemo(() => {
     const monthSet = new Set<string>();
@@ -528,7 +534,13 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   
   
   useEffect(() => {
-    if (!categoryChartCanvasRef.current) return;
+    if (dashboardCardView !== 'chart' || !categoryChartCanvasRef.current) {
+        if (categoryChartRef.current) {
+            categoryChartRef.current.destroy();
+            categoryChartRef.current = null;
+        }
+        return;
+    }
     const ctx = categoryChartCanvasRef.current.getContext('2d');
     if (!ctx) return;
 
@@ -602,8 +614,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         },
     });
 
-    return () => { if (categoryChartRef.current) categoryChartRef.current.destroy(); };
-  }, [categorySpendingData]);
+  }, [categorySpendingData, dashboardCardView]);
   
   const budgetProgress = useMemo(() => {
     if (!selectedBudget) return null;
@@ -944,31 +955,57 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                 <div className="bg-white rounded-xl shadow p-5 flex flex-col ring-1 ring-slate-100 min-h-0">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-semibold text-slate-800">
-                            {budgetProgress ? 'Spending vs. Budget' : 'Spending by Category'}
+                            {dashboardCardView === 'chart' 
+                                ? (budgetProgress ? 'Spending vs. Budget' : 'Spending by Category') 
+                                : 'Spending by Type'}
                         </h3>
-                        {selectedBudget && (
-                            <div>
-                                <span className="text-xs text-slate-500 mr-2">Chart View:</span>
-                                <div className="inline-flex rounded-md shadow-sm" role="group">
-                                    <button
-                                        type="button"
-                                        onClick={() => setChartView('stacked')}
-                                        className={`px-3 py-1 text-xs font-medium border border-slate-300 rounded-l-lg ${chartView === 'stacked' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
-                                    >
-                                        Stacked
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setChartView('grouped')}
-                                        className={`-ml-px px-3 py-1 text-xs font-medium border border-slate-300 rounded-r-lg ${chartView === 'grouped' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
-                                    >
-                                        Grouped
-                                    </button>
+                        <div className="flex items-center gap-4">
+                            {dashboardCardView === 'chart' && selectedBudget && (
+                                <div>
+                                    <span className="text-xs text-slate-500 mr-2">Chart View:</span>
+                                    <div className="inline-flex rounded-md shadow-sm" role="group">
+                                        <button
+                                            type="button"
+                                            onClick={() => setChartView('stacked')}
+                                            className={`px-3 py-1 text-xs font-medium border border-slate-300 rounded-l-lg ${chartView === 'stacked' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                        >
+                                            Stacked
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setChartView('grouped')}
+                                            className={`-ml-px px-3 py-1 text-xs font-medium border border-slate-300 rounded-r-lg ${chartView === 'grouped' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                        >
+                                            Grouped
+                                        </button>
+                                    </div>
                                 </div>
+                            )}
+                            <div className="inline-flex rounded-md shadow-sm" role="group">
+                                <button
+                                    type="button"
+                                    onClick={() => setDashboardCardView('chart')}
+                                    className={`px-3 py-1 text-xs font-medium border border-slate-300 rounded-l-lg ${dashboardCardView === 'chart' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                >
+                                    Chart
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDashboardCardView('matrix')}
+                                    className={`-ml-px px-3 py-1 text-xs font-medium border border-slate-300 rounded-r-lg ${dashboardCardView === 'matrix' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                >
+                                    Matrix
+                                </button>
                             </div>
+                        </div>
+                    </div>
+                    <div className="relative flex-grow min-h-0">
+                        {dashboardCardView === 'chart' ? (
+                            <canvas ref={categoryChartCanvasRef}></canvas>
+                        ) : (
+                            <SpendingTypeMatrix transactions={transactionsForSelectedMonth} />
                         )}
                     </div>
-                    <div className="relative flex-grow min-h-0"><canvas ref={categoryChartCanvasRef}></canvas></div>
                 </div>
             </div>
         </div>

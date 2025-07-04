@@ -1,6 +1,11 @@
 {
-  "currentVersion": "1.9.3",
+  "currentVersion": "1.10.0",
   "changelog": [
+    {
+      "version": "1.10.0",
+      "date": "2025-07-04",
+      "description": "### ✨ New Features\n\n*   **Dashboard View Toggle**: On the Expenses tab, the dashboard card can now be toggled between the 'Spending by Category' chart and a new 'Spending by Type' matrix for more flexible analysis."
+    },
     {
       "version": "1.9.3",
       "date": "2025-07-04",

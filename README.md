@@ -2,7 +2,7 @@
 
 A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.
 
-Current Version: **1.9.3**
+Current Version: **1.10.0**
 
 ## Key Features
 
@@ -15,6 +15,7 @@ Current Version: **1.9.3**
     *   Import transaction history from CSV files (supports Chase, Amex, BofA formats).
     *   Categorize spending into a customizable hierarchy (e.g., "Food:Groceries").
     *   Classify expenses as 'Non-Discretionary', 'Discretionary', or 'One-Time' to analyze spending habits.
+    *   A dashboard card can be toggled to show either a spending chart or a detailed spending-by-type matrix.
     *   When searching, a "Select All Results" button allows for bulk-editing all matching transactions at once.
 *   **AI-Powered Insights**: Use the Google Gemini API to analyze expenses and automatically identify spending anomalies.
 *   **Budgeting Tools**: Create and manage detailed budgets based on your historical spending data.

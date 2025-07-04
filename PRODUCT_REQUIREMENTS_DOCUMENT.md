@@ -1,6 +1,6 @@
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.9.3
+**Version:** 1.10.0
 **Date:** July 4, 2025
 **Author:** Gemini AI
 
@@ -52,8 +52,7 @@ This tab focuses on tracking and analyzing spending habits.
 *   **Dynamic Monthly Dashboard:**
     *   A dropdown allows users to view data for any month with recorded transactions. A "Compare with Budget" dropdown is located next to the month selector.
     *   Displays total spending for the selected month and compares it to the previous month.
-    *   A "Spending by Category" bar chart visualizes where money was spent.
-    *   If a budget is selected for comparison, the chart becomes a stacked bar chart showing money spent within budget, overspending, and budget remaining.
+    *   The primary analysis card features a **"Spending by Category"** bar chart (which becomes a stacked **"Spending vs. Budget"** chart when a budget is selected) and can be toggled to show a new **"Spending by Type"** matrix for more granular analysis.
 *   **Transaction List:**
     *   Transactions are grouped by month, then by parent category and sub-category.
     *   Supports searching, bulk selection, and re-categorization. When a search is active, a 'Select All Results' button appears, allowing the user to perform bulk actions on all matching transactions.
@@ -67,7 +66,7 @@ This tab focuses on tracking and analyzing spending habits.
 
 #### 4.3 Budget Tab
 This tab allows users to create and monitor budgets.
-*   **Budget Creation:** Users can automatically generate a budget based on the average spending from selected historical months and categories.
+*   **Budget Creation:** Users can automatically generate a budget based on the a-average spending from selected historical months and categories.
 *   **Budget Viewing:** Budgets are displayed as cards, showing the total budgeted amount and a per-category breakdown.
 *   **Editable Values:** Individual budget line items are editable directly in the view.
 *   **Printable Report:** Generates a formal, printable report for any selected budget.
