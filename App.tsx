@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Institution, Account, StockHolding, StockPriceInfo, ExpenseTransaction, Budget, BudgetItem, HistoricalDataPoint, CategoryHierarchy, CategoryInclusionSettings } from './types';
+import { Institution, Account, StockHolding, StockPriceInfo, ExpenseTransaction, Budget, BudgetItem, HistoricalDataPoint, CategoryHierarchy, CategoryInclusionSettings, SpendingType } from './types';
 import { 
     loadInstitutions, saveInstitutions, deleteInstitutions,
     loadAccounts, saveAccounts, deleteAccounts,
@@ -28,6 +29,7 @@ import ChangelogModal from './components/ChangelogModal';
 import { parseCategory, buildCategoryHierarchy } from './utils/categoryUtils';
 import PrintableBudgetReport from './components/PrintableBudgetReport';
 import PrintableAssetsReport from './components/PrintableAssetsReport';
+import PrintableExpenseReport from './components/PrintableExpenseReport';
 
 type ActiveTab = 'assets' | 'expenses' | 'budget' | 'categories' | 'data';
 type ImportType = 'assets' | 'expenses' | 'historical';
@@ -79,9 +81,15 @@ const App: React.FC = () => {
   const [importType, setImportType] = useState<ImportType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Printing State
   const [printingBudget, setPrintingBudget] = useState<Budget | null>(null);
   const [isPrintingAssets, setIsPrintingAssets] = useState<boolean>(false);
   const [isAssetsReportReady, setIsAssetsReportReady] = useState<boolean>(false);
+  const [isPrintingExpenses, setIsPrintingExpenses] = useState<boolean>(false);
+  const [expenseReportData, setExpenseReportData] = useState<{ transactions: ExpenseTransaction[]; budget: Budget | null; month: string; } | null>(null);
+  const [isExpenseReportReady, setIsExpenseReportReady] = useState<boolean>(false);
+
 
   // Fetch version info on mount
   useEffect(() => {
@@ -758,12 +766,28 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateTransactionSpendingType = (transactionId: string, spendingType: SpendingType) => {
+    setTransactions(prev =>
+        prev.map(tx =>
+            tx.id === transactionId ? { ...tx, spendingType } : tx
+        )
+    );
+  };
+
   const handleMassCategoryUpdate = (transactionIds: string[], newCategory: string) => {
     setTransactions(prev => prev.map(tx =>
         transactionIds.includes(tx.id) ? { ...tx, category: newCategory } : tx
     ));
     setIsMassUpdateModalOpen(false);
     setMassUpdateData(null);
+  };
+
+  const handleMassSpendingTypeUpdate = (transactionIds: string[], spendingType: SpendingType) => {
+    setTransactions(prev =>
+        prev.map(tx =>
+            transactionIds.includes(tx.id) ? { ...tx, spendingType } : tx
+        )
+    );
   };
 
   const handleCloseMassUpdateModal = () => {
@@ -861,6 +885,8 @@ const App: React.FC = () => {
     );
   };
 
+  // --- Printing Handlers ---
+
   const handlePrintBudget = (budgetId: string) => {
     const budgetToPrint = budgets.find(b => b.id === budgetId);
     if (budgetToPrint) {
@@ -869,18 +895,12 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const handleAfterPrint = () => {
-        setPrintingBudget(null);
-    };
-
+    const handleAfterPrint = () => { setPrintingBudget(null); };
     if (printingBudget) {
         window.addEventListener('afterprint', handleAfterPrint);
         window.print();
     }
-    
-    return () => {
-        window.removeEventListener('afterprint', handleAfterPrint);
-    };
+    return () => { window.removeEventListener('afterprint', handleAfterPrint); };
   }, [printingBudget]);
 
   const handlePrintAssetsReport = () => {
@@ -893,19 +913,36 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isPrintingAssets || !isAssetsReportReady) return;
-
-    const handleAfterPrint = () => {
-        setIsPrintingAssets(false);
-        setIsAssetsReportReady(false);
-    };
-    
+    const handleAfterPrint = () => { setIsPrintingAssets(false); setIsAssetsReportReady(false); };
     window.addEventListener('afterprint', handleAfterPrint, { once: true });
     window.print();
-    
-    return () => {
-        window.removeEventListener('afterprint', handleAfterPrint);
-    };
+    return () => { window.removeEventListener('afterprint', handleAfterPrint); };
   }, [isPrintingAssets, isAssetsReportReady]);
+  
+  const handlePrintExpenseReport = (transactionsForMonth: ExpenseTransaction[], selectedBudget: Budget | null, selectedMonth: string) => {
+    setExpenseReportData({
+        transactions: transactionsForMonth,
+        budget: selectedBudget,
+        month: selectedMonth
+    });
+    setIsPrintingExpenses(true);
+  };
+
+  const handleExpenseReportReady = () => {
+    setIsExpenseReportReady(true);
+  };
+
+  useEffect(() => {
+    if (!isPrintingExpenses || !isExpenseReportReady) return;
+    const handleAfterPrint = () => {
+        setIsPrintingExpenses(false);
+        setExpenseReportData(null);
+        setIsExpenseReportReady(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint, { once: true });
+    window.print();
+    return () => { window.removeEventListener('afterprint', handleAfterPrint); };
+  }, [isPrintingExpenses, isExpenseReportReady]);
 
 
   // Category Management Handlers
@@ -1117,7 +1154,7 @@ const App: React.FC = () => {
           />
         );
       case 'expenses':
-        return <ExpensesView transactions={transactions} onTransactionsImported={handleTransactionsImported} budgets={budgets} onUpdateTransactionCategory={handleUpdateTransactionCategory} onMassUpdateCategory={handleMassCategoryUpdate} categoryStructure={categoryStructure} categoryInclusion={categoryInclusion} />;
+        return <ExpensesView transactions={transactions} onTransactionsImported={handleTransactionsImported} budgets={budgets} onUpdateTransactionCategory={handleUpdateTransactionCategory} onUpdateTransactionSpendingType={handleUpdateTransactionSpendingType} onMassUpdateCategory={handleMassCategoryUpdate} onMassUpdateSpendingType={handleMassSpendingTypeUpdate} categoryStructure={categoryStructure} categoryInclusion={categoryInclusion} onPrintExpenseReport={handlePrintExpenseReport} />;
       case 'budget':
         return <BudgetView transactions={transactions} budgets={budgets} onAddBudget={handleAddBudget} onDeleteBudget={handleDeleteBudget} onUpdateBudgetItem={handleUpdateBudgetItem} categoryStructure={categoryStructure} onPrintBudget={handlePrintBudget} />;
       case 'categories':
@@ -1166,7 +1203,15 @@ const App: React.FC = () => {
           onReady={handleAssetsReportReady}
         />
       )}
-      <div className={printingBudget || isPrintingAssets ? 'no-print' : ''}>
+      {isPrintingExpenses && expenseReportData && (
+        <PrintableExpenseReport
+            month={expenseReportData.month}
+            transactions={expenseReportData.transactions}
+            budget={expenseReportData.budget}
+            onReady={handleExpenseReportReady}
+        />
+      )}
+      <div className={printingBudget || isPrintingAssets || isPrintingExpenses ? 'no-print' : ''}>
         <header className="bg-primary text-white shadow-lg">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center py-4">

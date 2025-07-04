@@ -180,7 +180,7 @@ const PrintableAssetsReport: React.FC<PrintableAssetsReportProps> = ({
   }, [nwChartReady, allocChartReady, onReady]);
 
   return (
-    <div className="p-6 font-sans text-black bg-white">
+    <div className="p-6 font-sans text-black bg-white printable-report-container">
       <header className="text-center border-b-2 border-black pb-4 mb-6">
         <h1 className="text-3xl font-bold">Assets Report</h1>
         <p className="text-lg mt-1">As of {new Date().toLocaleDateString()}</p>

@@ -1,4 +1,6 @@
 
+export type SpendingType = 'non-discretionary' | 'discretionary' | 'one-time';
+
 export interface StockHolding {
   id: string;
   symbol: string;
@@ -50,6 +52,7 @@ export interface ExpenseTransaction {
   type: string;
   amount: number;
   memo: string;
+  spendingType?: SpendingType;
 }
 
 export interface BudgetItem {

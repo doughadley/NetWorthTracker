@@ -1,7 +1,26 @@
-
 {
-  "currentVersion": "1.7.0",
+  "currentVersion": "1.9.2",
   "changelog": [
+    {
+      "version": "1.9.2",
+      "date": "2025-07-04",
+      "description": "### 🐛 Bug Fixes\n\n*   **UI Tweak**: Relocated the 'Compare with Budget' dropdown on the Expenses tab to be next to the month selector for a more intuitive layout."
+    },
+    {
+      "version": "1.9.1",
+      "date": "2025-07-04",
+      "description": "### 🐛 Bug Fixes\n\n*   **Expense Report**: The printable expense report will now correctly display an 'Actual Expenses' section even when no budget is selected for comparison."
+    },
+    {
+      "version": "1.9.0",
+      "date": "2025-07-04",
+      "description": "### ✨ New Features\n\n*   **Printable Expense Report**: Added a 'Report' button to the Expenses tab. This generates a comprehensive, print-friendly report for the selected month, which includes an 'Expenses by Spending Type' matrix and an 'Actual vs. Budgeted' comparison."
+    },
+    {
+      "version": "1.8.0",
+      "date": "2025-07-03",
+      "description": "### ✨ New Features\n\n*   **Expense Spending Types**: Transactions can now be classified as 'Non-Discretionary', 'Discretionary', or 'One-Time' via a new dropdown in the Expenses tab. This allows for more granular spending analysis.\n*   **Bulk Update Spending Type**: Added the ability to update the spending type for multiple selected transactions at once."
+    },
     {
       "version": "1.7.0",
       "date": "2025-07-03",

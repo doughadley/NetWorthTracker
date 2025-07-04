@@ -29,7 +29,7 @@ const PrintableBudgetReport: React.FC<PrintableBudgetReportProps> = ({ budget })
   const sortedParents = Object.keys(groupedItems).sort((a, b) => a.localeCompare(b));
 
   return (
-    <div className="p-8 font-sans text-black bg-white">
+    <div className="p-8 font-sans text-black bg-white printable-report-container">
       <header className="text-center border-b-2 border-black pb-4 mb-6">
         <h1 className="text-3xl font-bold">Budget Report</h1>
         <p className="text-lg mt-2">{budget.name}</p>

@@ -1,7 +1,7 @@
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.1
-**Date:** July 3, 2024
+**Version:** 1.9.2
+**Date:** July 4, 2025
 **Author:** Gemini AI
 
 ### 1. Introduction & Overview
@@ -50,14 +50,20 @@ This tab focuses on tracking and analyzing spending habits.
 *   **CSV Import:** Users can import transaction history from multiple CSV files, with pre-configured formats for Chase, American Express, and Bank of America.
 *   **AI-Powered Anomaly Detection:** Utilizes the Google Gemini API to analyze a selected month's transactions and highlight potential anomalies, such as unusually large purchases or spending in rare categories.
 *   **Dynamic Monthly Dashboard:**
-    *   A dropdown allows users to view data for any month with recorded transactions.
+    *   A dropdown allows users to view data for any month with recorded transactions. A "Compare with Budget" dropdown is located next to the month selector.
     *   Displays total spending for the selected month and compares it to the previous month.
     *   A "Spending by Category" bar chart visualizes where money was spent.
     *   If a budget is selected for comparison, the chart becomes a stacked bar chart showing money spent within budget, overspending, and budget remaining.
 *   **Transaction List:**
     *   Transactions are grouped by month, then by parent category and sub-category.
     *   Supports searching, bulk selection, and re-categorization.
+    *   **Spending Type Classification**: Each transaction can be classified as 'Non-Discretionary', 'Discretionary', or 'One-Time' via a dropdown.
+    *   **Bulk Updates**: The spending type and category can be updated for multiple selected transactions at once.
     *   Smart re-categorization prompts the user to update other similar transactions.
+*   **Printable Expense Report:**
+    *   A "Report" button generates a comprehensive, print-friendly report for the selected month.
+    *   The report includes a detailed **Expenses by Spending Type** matrix, breaking down spending by category and type.
+    *   It also includes an **Actual vs. Budgeted Expenses** comparison if a budget is selected. If no budget is chosen, a summary of **Actual Expenses** is shown instead.
 
 #### 4.3 Budget Tab
 This tab allows users to create and monitor budgets.
@@ -85,89 +91,7 @@ A centralized hub for data import/export and advanced management.
 
 ---
 
-### 5. Data Structures
-The application relies on a set of well-defined TypeScript interfaces to model its data.
-
-*   **`Institution`**: Represents a financial institution or a real estate asset.
-    ```typescript
-    export interface Institution {
-      id: string; // Unique identifier
-      name: string; // e.g., "Main Street Bank", "123 Main St"
-      type: 'financial' | 'real_estate';
-      assetValue?: number; // For real estate: Property Value
-      liabilityValue?: number; // For real estate: Mortgage Balance
-    }
-    ```
-*   **`Account`**: Represents a single account within a financial institution.
-    ```typescript
-    export interface Account {
-      id: string; // Unique identifier
-      institutionId: string; // Links to an Institution
-      name: string; // e.g., "Everyday Checking"
-      balance: number; // Cash portion of the account
-      stockHoldings: StockHolding[]; // Array of stocks
-      cdHoldings: CDHolding[]; // Array of CDs
-    }
-    ```
-    *   **`StockHolding`**: A single stock position.
-        ```typescript
-        export interface StockHolding {
-          id: string;
-          symbol: string; // e.g., "AAPL"
-          shares: number;
-          purchasePrice: number; // Price per share at time of purchase
-          currentPrice: number; // Live market price
-        }
-        ```
-    *   **`CDHolding`**: A Certificate of Deposit.
-        ```typescript
-        export interface CDHolding {
-          id: string;
-          principal: number;
-          interestRate: number; // e.g., 5.5 for 5.5%
-          openDate: string; // "YYYY-MM-DD"
-          maturityDate: string; // "YYYY-MM-DD"
-        }
-        ```
-*   **`ExpenseTransaction`**: A single expense or income transaction.
-    ```typescript
-    export interface ExpenseTransaction {
-      id: string;
-      transactionDate: string; // "YYYY-MM-DD"
-      postDate: string; // "YYYY-MM-DD"
-      description: string; // "STARBUCKS #1234"
-      category: string; // e.g., "Food:Coffee"
-      type: string; // "debit", "credit", "sale", etc.
-      amount: number; // Negative for expenses, positive for income
-      memo: string;
-    }
-    ```
-*   **`Budget`**: Defines a budget with multiple line items.
-    ```typescript
-    export interface Budget {
-      id: string;
-      name: string; // e.g., "2024 Monthly Plan"
-      items: BudgetItem[];
-    }
-    ```
-    *   **`BudgetItem`**: A single line item within a budget.
-        ```typescript
-        export interface BudgetItem {
-          category: string; // e.g., "Food:Groceries"
-          amount: number; // Monthly budgeted amount
-        }
-        ```
-*   **`CategoryHierarchy`**: A record object representing the parent-child relationship of categories.
-    ```typescript
-    // { [parentName]: childName[] }
-    // Example: { "Food": ["Groceries", "Restaurants"], "Utilities": [] }
-    export type CategoryHierarchy = Record<string, string[]>;
-    ```
-
----
-
 ### 6. Deployment Requirements
-
 The application is a static Single Page Application (SPA) built with Vite. It can be deployed to any modern static hosting provider.
 
 #### 6.1 Development Environment (Vite)
@@ -181,11 +105,12 @@ As outlined in `README.md`:
 To deploy the application to a Windows Server running IIS:
 1.  **Build the Application:** Run `npm run build`. This command uses Vite to bundle all application code and assets into a `dist` folder. During this process, Vite will replace all instances of `import.meta.env.VITE_*` with the actual values from your `.env.local` file, embedding them directly into the static JavaScript files.
 2.  **IIS Server Setup:**
-    *   Ensure the **IIS URL Rewrite Module** is installed on the server. This is critical for SPA routing.
-    *   In IIS Manager, create a new website.
-    *   Set the "Physical path" of the website to the `dist` folder generated in step 1.
+    *   Ensure the **IIS URL Rewrite Module** is installed on the server. This can be installed via the Web Platform Installer or directly from the IIS website. It is critical for SPA routing.
+    *   In IIS Manager, create a new website or use an existing one.
+    *   Set the **Physical path** of the website to the `dist` folder generated in step 1.
+    *   Configure the site's **Application Pool** to use `.NET CLR version: No Managed Code`, as the site only contains static files and does not require a .NET runtime.
 3.  **Configure URL Rewrite:**
-    *   Because this is a SPA, all navigation requests (e.g., `/expenses`, `/budget`) must be routed to `index.html` to let the React Router handle them.
+    *   Because this is a SPA, all navigation requests (e.g., `/expenses`, `/budget`) must be rewritten to serve the `index.html` file, allowing the client-side React Router to handle them.
     *   Create a `web.config` file in the `dist` folder with the following content:
         ```xml
         <?xml version="1.0" encoding="UTF-8"?>

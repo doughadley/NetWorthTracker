@@ -1,5 +1,7 @@
+
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings } from '../types';
+import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings, SpendingType } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
 import { formats } from '../utils/expenseFormatUtils';
 import { parseCsv } from '../utils/csvParser';
@@ -56,6 +58,11 @@ const ExclamationTriangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props)
     <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625l6.28-10.875ZM10 14.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1.5-5.25a.75.75 0 0 0-1.5 0v2.5a.75.75 0 0 0 1.5 0v-2.5Z" clipRule="evenodd" />
   </svg>
 );
+const PrinterIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5" {...props}>
+      <path fillRule="evenodd" d="M5 2.75C5 1.784 5.784 1 6.75 1h6.5c.966 0 1.75.784 1.75 1.75v3.552c.377.135.74.34 1.056.602a.75.75 0 0 1-1.228.878A2.25 2.25 0 0 0 13.25 7h-6.5a2.25 2.25 0 0 0-1.581.682.75.75 0 0 1-1.228-.878A3.734 3.734 0 0 1 5 6.302V2.75Zm3.559 8.24a.75.75 0 0 1 1.06 0l1.5 1.5a.75.75 0 0 1-1.06 1.06l-.97-.97v3.172a.75.75 0 0 1-1.5 0V12.58l-.97.97a.75.75 0 0 1-1.06-1.06l1.5-1.5ZM5.5 10a.75.75 0 0 0-1.5 0v3.25A2.75 2.75 0 0 0 6.75 16h6.5A2.75 2.75 0 0 0 16 13.25V10a.75.75 0 0 0-1.5 0v3.25c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25V10Z" clipRule="evenodd" />
+    </svg>
+);
 
 
 interface GroupedSubCategory { total: number; transactions: ExpenseTransaction[]; }
@@ -67,9 +74,12 @@ interface ExpensesViewProps {
   onTransactionsImported: (transactions: ExpenseTransaction[]) => { newCount: number, duplicateCount: number };
   budgets: Budget[];
   onUpdateTransactionCategory: (transactionId: string, newCategory: string) => void;
+  onUpdateTransactionSpendingType: (transactionId: string, spendingType: SpendingType) => void;
   onMassUpdateCategory: (transactionIds: string[], newCategory: string) => void;
+  onMassUpdateSpendingType: (transactionIds: string[], spendingType: SpendingType) => void;
   categoryStructure: CategoryHierarchy;
   categoryInclusion: CategoryInclusionSettings;
+  onPrintExpenseReport: (transactions: ExpenseTransaction[], budget: Budget | null, month: string) => void;
 }
 
 const EXPENSE_RELATED_TYPES = ['debit', 'sale', 'credit', 'return'];
@@ -80,7 +90,7 @@ const categoryColors = [
 
 type ChartView = 'grouped' | 'stacked';
 
-const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransactionsImported, budgets, onUpdateTransactionCategory, onMassUpdateCategory, categoryStructure, categoryInclusion }) => {
+const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransactionsImported, budgets, onUpdateTransactionCategory, onUpdateTransactionSpendingType, onMassUpdateCategory, onMassUpdateSpendingType, categoryStructure, categoryInclusion, onPrintExpenseReport }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedFormatId, setSelectedFormatId] = useState<string>(formats[0]?.id || '');
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>('');
@@ -627,6 +637,15 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     onMassUpdateCategory(Array.from(selectedTxIds), categoryToSet);
     setSelectedTxIds(new Set());
   };
+  
+  const handleBulkSpendingTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSpendingType = e.target.value as SpendingType;
+    if (!newSpendingType || selectedTxIds.size === 0) return;
+    onMassUpdateSpendingType(Array.from(selectedTxIds), newSpendingType);
+    setSelectedTxIds(new Set());
+    e.target.value = ""; // Reset dropdown
+  };
+
   const handleCategoryChange = (transactionId: string, newCategoryValue: string) => {
     if (newCategoryValue === '___CREATE_NEW___') {
       const newCategoryName = window.prompt('Enter new category name (use "Parent:Child" for sub-categories).');
@@ -678,11 +697,11 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const TransactionList: React.FC<{ transactions: ExpenseTransaction[] }> = ({ transactions: txs }) => {
     const allIdsInList = useMemo(() => txs.map(tx => tx.id), [txs]);
     const areAllSelected = useMemo(() => allIdsInList.length > 0 && allIdsInList.every(id => selectedTxIds.has(id)), [allIdsInList, selectedTxIds]);
-    return (<div className="px-3 pb-2 sm:px-4 sm:pb-3 text-xs"> <div className="grid grid-cols-[auto,2fr,4fr,3fr,2fr] gap-x-2 text-slate-500 font-bold p-2 border-t border-b bg-slate-50 items-center"> <div className="flex items-center"> <input type="checkbox" title={areAllSelected ? "Deselect all in this group" : "Select all in this group"} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" checked={areAllSelected} onChange={() => areAllSelected ? handleDeselectAllInGroup(allIdsInList) : handleSelectAllInGroup(allIdsInList)} /> </div> <div>Date</div> <div>Description</div> <div>Category</div> <div className="text-right">Amount</div> </div> {txs.map(tx => {
+    return (<div className="px-3 pb-2 sm:px-4 sm:pb-3 text-xs"> <div className="grid grid-cols-[auto,2fr,4fr,3fr,3fr,2fr] gap-x-2 text-slate-500 font-bold p-2 border-t border-b bg-slate-50 items-center"> <div className="flex items-center"> <input type="checkbox" title={areAllSelected ? "Deselect all in this group" : "Select all in this group"} className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" checked={areAllSelected} onChange={() => areAllSelected ? handleDeselectAllInGroup(allIdsInList) : handleSelectAllInGroup(allIdsInList)} /> </div> <div>Date</div> <div>Description</div> <div>Category</div> <div>Spending Type</div> <div className="text-right">Amount</div> </div> {txs.map(tx => {
         const isAnomaly = !!expenseAnomalies[tx.id];
         const rowClasses = isAnomaly
-            ? "grid grid-cols-[auto,2fr,4fr,3fr,2fr] gap-x-2 items-center p-2 border-b border-amber-200 last:border-b-0 bg-amber-50"
-            : "grid grid-cols-[auto,2fr,4fr,3fr,2fr] gap-x-2 items-center p-2 border-b border-slate-100 last:border-b-0";
+            ? "grid grid-cols-[auto,2fr,4fr,3fr,3fr,2fr] gap-x-2 items-center p-2 border-b border-amber-200 last:border-b-0 bg-amber-50"
+            : "grid grid-cols-[auto,2fr,4fr,3fr,3fr,2fr] gap-x-2 items-center p-2 border-b border-slate-100 last:border-b-0";
 
         return (
             <div key={tx.id} className={rowClasses}>
@@ -713,6 +732,19 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                         onChange={(newValue) => handleCategoryChange(tx.id, newValue)}
                         className="w-full text-xs p-1 border border-slate-300 rounded-md bg-white focus:ring-1 focus:ring-primary focus:border-primary"
                     />
+                </div>
+                <div>
+                    <select
+                        value={tx.spendingType || ''}
+                        onChange={(e) => onUpdateTransactionSpendingType(tx.id, e.target.value as SpendingType)}
+                        className="w-full text-xs p-1 border border-slate-300 rounded-md bg-white focus:ring-1 focus:ring-primary focus:border-primary"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <option value="">Set Type...</option>
+                        <option value="non-discretionary">Non-Discretionary</option>
+                        <option value="discretionary">Discretionary</option>
+                        <option value="one-time">One-Time</option>
+                    </select>
                 </div>
                 <div className={`text-right font-medium ${tx.amount < 0 ? 'text-red-600' : tx.amount > 0 ? 'text-green-600' : 'text-slate-600'}`}>
                     {formatCurrencyWhole(Math.abs(tx.amount))}
@@ -807,76 +839,83 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         {/* --- MONTH SELECTOR & DASHBOARD --- */}
         <div className="space-y-6">
             {availableMonths.length > 0 && (
-                <div className="pb-4 border-b">
-                    <label htmlFor="month-select" className="block text-sm font-medium text-slate-600 mb-1">
-                        Showing Dashboard For:
-                    </label>
-                    <select
-                        id="month-select"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="block w-full max-w-xs rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
-                    >
-                        {availableMonths.map(month => (
-                            <option key={month} value={month}>
-                                {formatMonth(month)}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 auto-rows-[16rem]">
-                <div className="bg-white rounded-xl shadow p-5 flex flex-col justify-between ring-1 ring-slate-100">
-                    <div>
-                        {budgetProgress ? (
-                            // --- BUDGET SELECTED VIEW ---
+                <div className="flex justify-between items-end pb-4 border-b">
+                    <div className="flex items-end gap-6">
+                        <div>
+                            <label htmlFor="month-select" className="block text-sm font-medium text-slate-600 mb-1">
+                                Showing Dashboard For:
+                            </label>
+                            <select
+                                id="month-select"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
+                            >
+                                {availableMonths.map(month => (
+                                    <option key={month} value={month}>
+                                        {formatMonth(month)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        {budgets.length > 0 && (
                             <div>
-                                <h3 className="text-lg font-semibold text-slate-800 mb-4">{selectedBudget?.name} - Progress</h3>
-                                <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
-                                    <div className="w-full md:w-1/3 text-center md:text-left">
-                                        <p className="text-sm text-slate-500">Spent This Month</p>
-                                        <p className="text-4xl font-bold text-red-600">{formatCurrencyWhole(budgetProgress.spent)}</p>
-                                        <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)}</p>
-                                    </div>
-                                    <div className="w-full md:w-2/3">
-                                        <div className="flex justify-between text-sm font-medium text-slate-600 mb-1">
-                                            <span>{budgetProgress.progress.toFixed(1)}% Used</span>
-                                            <span className={`${budgetProgress.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {formatCurrencyWhole(budgetProgress.remaining)} {budgetProgress.remaining >= 0 ? 'left' : 'over'}
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-slate-200 rounded-full h-4"><div className="bg-primary h-4 rounded-full" style={{ width: `${Math.min(budgetProgress.progress, 100)}%` }}></div></div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            // --- NO BUDGET SELECTED VIEW ---
-                            <div className="flex flex-col justify-center text-center">
-                                <h3 className="font-semibold text-slate-500 text-sm mb-2">Spending for {formatMonth(selectedMonth)}</h3>
-                                <p className="text-3xl font-bold text-red-600">{formatCurrencyWhole(selectedMonthMetrics.currentMonthTotal)}</p>
-                                <div className={`flex items-center justify-center text-sm font-semibold mt-1 ${selectedMonthMetrics.change <= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {selectedMonthMetrics.change <= 0 ? <ArrowTrendingDownIcon className="w-4 h-4 mr-1"/> : <ArrowTrendingUpIcon className="w-4 h-4 mr-1"/>}
-                                    {Math.abs(selectedMonthMetrics.change).toFixed(1)}% vs last month
-                                </div>
+                                <label htmlFor="budget-select-unified" className="block text-sm font-medium text-slate-600 mb-1">
+                                    Compare with Budget
+                                </label>
+                                <select 
+                                    id="budget-select-unified" 
+                                    value={selectedBudgetId} 
+                                    onChange={e => setSelectedBudgetId(e.target.value)} 
+                                    className="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
+                                >
+                                    <option value="">— No Budget —</option>
+                                    {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
                             </div>
                         )}
                     </div>
-                    
-                    {/* --- UNIFIED BUDGET SELECTOR AT THE BOTTOM --- */}
-                    {budgets.length > 0 && (
-                        <div className="pt-4 border-t border-slate-200">
-                            <label htmlFor="budget-select-unified" className="block text-sm font-medium text-slate-600 mb-1">
-                                {selectedBudget ? 'Current Budget:' : 'Compare with a budget:'}
-                            </label>
-                            <select 
-                                id="budget-select-unified" 
-                                value={selectedBudgetId} 
-                                onChange={e => setSelectedBudgetId(e.target.value)} 
-                                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black"
-                            >
-                                <option value="">{selectedBudget ? '— No Budget —' : 'Select a Budget'}</option>
-                                {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
+                     <button
+                        onClick={() => onPrintExpenseReport(transactionsForSelectedMonth, selectedBudget, selectedMonth)}
+                        className="flex items-center justify-center px-4 py-2 bg-slate-600 text-white rounded-md shadow hover:bg-slate-700 transition duration-150 disabled:opacity-50"
+                        disabled={transactionsForSelectedMonth.length === 0}
+                    >
+                        <PrinterIcon className="mr-2" /> Report
+                    </button>
+                </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 auto-rows-[16rem]">
+                <div className="bg-white rounded-xl shadow p-5 flex flex-col justify-center ring-1 ring-slate-100">
+                    {budgetProgress ? (
+                        // --- BUDGET SELECTED VIEW ---
+                        <div>
+                            <h3 className="text-lg font-semibold text-slate-800 mb-4">{selectedBudget?.name} - Progress</h3>
+                            <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
+                                <div className="w-full md:w-1/3 text-center md:text-left">
+                                    <p className="text-sm text-slate-500">Spent This Month</p>
+                                    <p className="text-4xl font-bold text-red-600">{formatCurrencyWhole(budgetProgress.spent)}</p>
+                                    <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)}</p>
+                                </div>
+                                <div className="w-full md:w-2/3">
+                                    <div className="flex justify-between text-sm font-medium text-slate-600 mb-1">
+                                        <span>{budgetProgress.progress.toFixed(1)}% Used</span>
+                                        <span className={`${budgetProgress.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {formatCurrencyWhole(budgetProgress.remaining)} {budgetProgress.remaining >= 0 ? 'left' : 'over'}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 rounded-full h-4"><div className="bg-primary h-4 rounded-full" style={{ width: `${Math.min(budgetProgress.progress, 100)}%` }}></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        // --- NO BUDGET SELECTED VIEW ---
+                        <div className="flex flex-col justify-center text-center">
+                            <h3 className="font-semibold text-slate-500 text-sm mb-2">Spending for {formatMonth(selectedMonth)}</h3>
+                            <p className="text-3xl font-bold text-red-600">{formatCurrencyWhole(selectedMonthMetrics.currentMonthTotal)}</p>
+                            <div className={`flex items-center justify-center text-sm font-semibold mt-1 ${selectedMonthMetrics.change <= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {selectedMonthMetrics.change <= 0 ? <ArrowTrendingDownIcon className="w-4 h-4 mr-1"/> : <ArrowTrendingUpIcon className="w-4 h-4 mr-1"/>}
+                                {Math.abs(selectedMonthMetrics.change).toFixed(1)}% vs last month
+                            </div>
                         </div>
                     )}
                 </div>
@@ -928,7 +967,21 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         </div>
       </div>
 
-      {selectedTxIds.size > 0 && (<div className="fixed bottom-0 left-0 right-0 bg-slate-800 text-white p-3 shadow-[0_-2px_10px_rgba(0,0,0,0.2)] z-40 flex items-center justify-between transition-transform transform-gpu animate-slide-up"> <span className="text-sm font-medium">{selectedTxIds.size} item(s) selected</span> <div className="flex items-center gap-4"> <CategorySelector id="bulk-category-selector" value="" onChange={handleBulkCategoryChange} className="bg-slate-700 text-white rounded-md p-2 text-sm focus:ring-primary" /> <button onClick={() => setSelectedTxIds(new Set())} className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-semibold"> Deselect All </button> </div> </div>)}
+      {selectedTxIds.size > 0 && (<div className="fixed bottom-0 left-0 right-0 bg-slate-800 text-white p-3 shadow-[0_-2px_10px_rgba(0,0,0,0.2)] z-40 flex items-center justify-between transition-transform transform-gpu animate-slide-up"> <span className="text-sm font-medium">{selectedTxIds.size} item(s) selected</span> <div className="flex items-center gap-4">
+            <CategorySelector id="bulk-category-selector" value="" onChange={handleBulkCategoryChange} className="bg-slate-700 text-white rounded-md p-2 text-sm focus:ring-primary" />
+            <select
+                id="bulk-spending-type-selector"
+                value=""
+                onChange={handleBulkSpendingTypeChange}
+                className="bg-slate-700 text-white rounded-md p-2 text-sm focus:ring-primary"
+            >
+                <option value="" disabled>Set Spending Type...</option>
+                <option value="non-discretionary">Non-Discretionary</option>
+                <option value="discretionary">Discretionary</option>
+                <option value="one-time">One-Time</option>
+            </select>
+            <button onClick={() => setSelectedTxIds(new Set())} className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-semibold"> Deselect All </button> 
+        </div> </div>)}
       
       <Modal
         isOpen={isAnalysisResultModalOpen}

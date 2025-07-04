@@ -2,7 +2,7 @@
 
 A personal finance application to track net worth across various accounts including stock holdings, cash, savings, and CD accounts, organized by financial institution.
 
-Current Version: **1.7.0**
+Current Version: **1.9.2**
 
 ## Key Features
 
@@ -11,12 +11,15 @@ Current Version: **1.7.0**
 *   **Live Stock Prices**: Fetch up-to-date stock prices from Alpha Vantage.
 *   **Secure Authentication**: Optional, secure user sign-up and login using Firebase Authentication (email/password).
 *   **Local-First & Offline Mode**: The application is fully functional without an account. All data is stored privately in your browser's local storage.
-*   **Expense Tracking**: Import transaction history from CSV files (supports Chase, Amex, BofA formats) and categorize your spending.
+*   **Expense Tracking & Categorization**:
+    *   Import transaction history from CSV files (supports Chase, Amex, BofA formats).
+    *   Categorize spending into a customizable hierarchy (e.g., "Food:Groceries").
+    *   Classify expenses as 'Non-Discretionary', 'Discretionary', or 'One-Time' to analyze spending habits.
 *   **AI-Powered Insights**: Use the Google Gemini API to analyze expenses and automatically identify spending anomalies.
 *   **Budgeting Tools**: Create and manage detailed budgets based on your historical spending data.
 *   **Full Data Portability**: Export and import all your assets, expenses, and historical data in JSON format.
 *   **Safe Data Deletion**: Confirmation dialogs require users to type "DELETE" before removing major data sets, preventing accidental loss.
-*   **Printable Reports**: Generate clean, printable reports for your budgets and a complete summary of your assets.
+*   **Printable Reports**: Generate clean, printable reports for your budgets, a complete summary of your assets, and a detailed monthly expense report.
 *   **Versioning**: Track application updates through the "What's New" changelog in the footer.
 
 ---

@@ -5,7 +5,31 @@
 @media print {
   body {
     background-color: white;
+    margin: 0;
+    padding: 0;
   }
+
+  /* This is a robust method to ensure only the report prints */
+  
+  /* 1. Hide everything on the page by default */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* 2. Make the report container and everything inside it visible again */
+  .printable-report-container, .printable-report-container * {
+    visibility: visible;
+  }
+  
+  /* 3. Position the report at the top-left of the page. */
+  .printable-report-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* Fallback/helper to hide the main app wrapper if needed, though the visibility rules should be sufficient */
   .no-print {
     display: none !important;
   }
