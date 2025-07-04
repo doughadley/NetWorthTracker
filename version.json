@@ -1,6 +1,11 @@
 {
-  "currentVersion": "1.9.2",
+  "currentVersion": "1.9.3",
   "changelog": [
+    {
+      "version": "1.9.3",
+      "date": "2025-07-04",
+      "description": "### ✨ New Features\n\n*   **Select All Search Results**: When searching in the Expenses tab, a 'Select All Results' button now appears, allowing for bulk actions on all matching transactions across all months."
+    },
     {
       "version": "1.9.2",
       "date": "2025-07-04",

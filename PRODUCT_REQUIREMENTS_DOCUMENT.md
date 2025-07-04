@@ -1,6 +1,6 @@
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.9.2
+**Version:** 1.9.3
 **Date:** July 4, 2025
 **Author:** Gemini AI
 
@@ -56,7 +56,7 @@ This tab focuses on tracking and analyzing spending habits.
     *   If a budget is selected for comparison, the chart becomes a stacked bar chart showing money spent within budget, overspending, and budget remaining.
 *   **Transaction List:**
     *   Transactions are grouped by month, then by parent category and sub-category.
-    *   Supports searching, bulk selection, and re-categorization.
+    *   Supports searching, bulk selection, and re-categorization. When a search is active, a 'Select All Results' button appears, allowing the user to perform bulk actions on all matching transactions.
     *   **Spending Type Classification**: Each transaction can be classified as 'Non-Discretionary', 'Discretionary', or 'One-Time' via a dropdown.
     *   **Bulk Updates**: The spending type and category can be updated for multiple selected transactions at once.
     *   Smart re-categorization prompts the user to update other similar transactions.
