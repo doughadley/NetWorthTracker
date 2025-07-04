@@ -1,6 +1,7 @@
+
 import React from 'react';
 import Modal from './Modal';
-import { Marked } from 'marked';
+import { marked } from 'marked';
 
 interface UserDocsModalProps {
   isOpen: boolean;
@@ -128,48 +129,49 @@ This is your hub for data management.
 const UserDocsModal: React.FC<UserDocsModalProps> = ({ isOpen, onClose }) => {
 
   const createMarkup = (markdownText: string) => {
-    // Define a custom renderer object.
-    const renderer = {
-      heading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6) {
-        const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
-        if (level === 2) {
-          return `<h2 id="${escapedText}" class="text-2xl font-bold text-primary mt-6 mb-3 border-b-2 border-slate-200 pb-2">${text}</h2>`;
-        }
-        if (level === 3) {
-          return `<h3 id="${escapedText}" class="text-xl font-semibold text-slate-800 mt-4 mb-2">${text}</h3>`;
-        }
-        if (level === 4) {
-          return `<h4 id="${escapedText}" class="text-lg font-semibold text-slate-700 mt-3 mb-1">${text}</h4>`;
-        }
-        return `<h${level} id="${escapedText}" class="font-bold">${text}</h${level}>`;
-      },
-      paragraph(text: string) {
-        return `<p class="mb-3 text-slate-700 leading-relaxed">${text}</p>`;
-      },
-      list(body: string, ordered: boolean) {
-        const tag = ordered ? 'ol' : 'ul';
-        const listClass = ordered ? 'list-decimal list-inside space-y-2' : 'list-disc list-inside space-y-2';
-        return `<${tag} class="${listClass} mb-4">${body}</${tag}>`;
-      },
-      listitem(text: string) {
-        return `<li class="pl-2">${text}</li>`;
-      },
-      strong(text: string) {
-        return `<strong class="font-semibold text-slate-800">${text}</strong>`;
-      },
-      codespan(code: string) {
-        return `<code class="bg-slate-200 text-slate-800 p-1 rounded text-xs font-mono">${code}</code>`;
-      },
-      hr() {
-        return '<hr class="my-6 border-slate-200" />';
+    const renderer = new marked.Renderer();
+    
+    renderer.heading = (text, level) => {
+      const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
+      if (level === 2) {
+        return `<h2 id="${escapedText}" class="text-2xl font-bold text-primary mt-6 mb-3 border-b-2 border-slate-200 pb-2">${text}</h2>`;
       }
+      if (level === 3) {
+        return `<h3 id="${escapedText}" class="text-xl font-semibold text-slate-800 mt-4 mb-2">${text}</h3>`;
+      }
+      if (level === 4) {
+        return `<h4 id="${escapedText}" class="text-lg font-semibold text-slate-700 mt-3 mb-1">${text}</h4>`;
+      }
+      return `<h${level} id="${escapedText}" class="font-bold">${text}</h${level}>`;
+    };
+
+    renderer.paragraph = (text) => {
+      return `<p class="mb-3 text-slate-700 leading-relaxed">${text}</p>`;
     };
     
-    // Create a new Marked instance with the custom renderer.
-    const markedInstance = new Marked({ renderer });
+    renderer.list = (body, ordered) => {
+      const tag = ordered ? 'ol' : 'ul';
+      const listClass = ordered ? 'list-decimal list-inside space-y-2' : 'list-disc list-inside space-y-2';
+      return `<${tag} class="${listClass} mb-4">${body}</${tag}>`;
+    };
+    
+    renderer.listitem = (text) => {
+      return `<li class="pl-2">${text}</li>`;
+    };
+    
+    renderer.strong = (text) => {
+      return `<strong class="font-semibold text-slate-800">${text}</strong>`;
+    };
 
-    // Parse the markdown using the instance.
-    const rawMarkup = markedInstance.parse(markdownText, { gfm: true, breaks: true });
+    renderer.codespan = (code) => {
+      return `<code class="bg-slate-200 text-slate-800 p-1 rounded text-xs font-mono">${code}</code>`;
+    };
+    
+    renderer.hr = () => {
+      return '<hr class="my-6 border-slate-200" />';
+    };
+    
+    const rawMarkup = marked.parse(markdownText, { gfm: true, breaks: true, renderer });
     
     return { __html: rawMarkup as string };
   };
