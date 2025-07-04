@@ -1,6 +1,16 @@
 {
-  "currentVersion": "1.10.0",
+  "currentVersion": "1.11.0",
   "changelog": [
+    {
+      "version": "1.11.0",
+      "date": "2025-07-04",
+      "description": "### ✨ New Features\n\n*   **Interactive Expense Matrix**: The 'Spending by Type' matrix on the Expenses tab is now interactive. Clicking on a category, spending type, or individual cell will filter the transaction list below, allowing for quick and easy expense drill-down."
+    },
+    {
+      "version": "1.10.1",
+      "date": "2025-07-04",
+      "description": "### 🚀 UI Improvements\n\n*   **Dashboard Layout**: Adjusted the layout on the Expenses tab. The 'Spending for Month' card now occupies 1/3 of the width and the 'Spending by Category' card occupies 2/3, improving visual hierarchy."
+    },
     {
       "version": "1.10.0",
       "date": "2025-07-04",

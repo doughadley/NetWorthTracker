@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings, SpendingType } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -131,6 +128,8 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const [chartView, setChartView] = useState<ChartView>('stacked');
   const [dashboardCardView, setDashboardCardView] = useState<DashboardCardView>('chart');
 
+  const [matrixFilter, setMatrixFilter] = useState<{ category: string | null; spendingType: SpendingType | 'unclassified' | null; }>({ category: null, spendingType: null });
+
 
   const availableMonths = useMemo(() => {
     const monthSet = new Set<string>();
@@ -212,8 +211,20 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     const filteredBySearch = transactions.filter(tx =>
       tx.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const filteredByMatrix = filteredBySearch.filter(tx => {
+        if (matrixFilter.category) {
+            const { parent } = parseCategory(tx.category || 'Uncategorized');
+            if (parent !== matrixFilter.category) return false;
+        }
+        if (matrixFilter.spendingType) {
+            const type = tx.spendingType || 'unclassified';
+            if (type !== matrixFilter.spendingType) return false;
+        }
+        return true;
+    });
     
-    const finalFiltered = filteredBySearch.filter(tx =>
+    const finalFiltered = filteredByMatrix.filter(tx =>
       EXPENSE_RELATED_TYPES.includes(tx.type.toLowerCase())
     );
 
@@ -244,7 +255,16 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     }
 
     return { groupedExpenses: grouped, searchTotal: total };
-  }, [transactions, searchTerm]);
+  }, [transactions, searchTerm, matrixFilter]);
+  
+  const handleMatrixCellClick = (category: string | null, spendingType: SpendingType | 'unclassified' | null) => {
+    setMatrixFilter(prev => {
+        if (prev.category === category && prev.spendingType === spendingType) {
+            return { category: null, spendingType: null }; // Click same cell to clear
+        }
+        return { category, spendingType };
+    });
+};
 
   const handleAnalyzeExpenses = async () => {
     if (!analysisMonth) {
@@ -779,7 +799,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const sortedMonthKeys = Object.keys(groupedExpenses).sort().reverse();
   
   useEffect(() => { 
-    if (searchTerm.trim()) { 
+    if (searchTerm.trim() || matrixFilter.category || matrixFilter.spendingType) { 
       const newExpandedMonths = new Set<string>(); 
       const newExpandedParents = new Set<string>(); 
       const newExpandedSubs = new Set<string>(); 
@@ -802,7 +822,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
       setExpandedParentCategories(newExpandedParents); 
       setExpandedSubCategories(newExpandedSubs); 
     } 
-  }, [searchTerm, groupedExpenses]);
+  }, [searchTerm, groupedExpenses, matrixFilter]);
 
   const groupContainsAnomalies = (transactions: ExpenseTransaction[]): boolean => {
       if (Object.keys(expenseAnomalies).length === 0) return false;
@@ -825,6 +845,11 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const toggleSubCategory = (key: string) => setExpandedSubCategories(p => p.has(key) ? (new Set([...p].filter(k => k !== key))) : new Set([...p, key]));
   const handleCollapseAll = () => { setExpandedMonths(new Set()); setExpandedParentCategories(new Set()); setExpandedSubCategories(new Set()); };
   
+  const filterText = [
+    matrixFilter.category ? `Category: "${matrixFilter.category}"` : '',
+    matrixFilter.spendingType ? `Type: "${matrixFilter.spendingType}"` : ''
+  ].filter(Boolean).join(' & ');
+
   return (
     <>
       <div className="bg-white rounded-lg shadow p-4 sm:p-6 space-y-6">
@@ -917,19 +942,19 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                     </button>
                 </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 auto-rows-[16rem]">
-                <div className="bg-white rounded-xl shadow p-5 flex flex-col justify-center ring-1 ring-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-auto md:auto-rows-[16rem]">
+                <div className="md:col-span-4 bg-white rounded-xl shadow p-5 flex flex-col justify-center ring-1 ring-slate-100">
                     {budgetProgress ? (
                         // --- BUDGET SELECTED VIEW ---
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800 mb-4">{selectedBudget?.name} - Progress</h3>
-                            <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
-                                <div className="w-full md:w-1/3 text-center md:text-left">
+                            <div className="flex flex-col items-center gap-4 justify-center text-center">
+                                <div className="w-full">
                                     <p className="text-sm text-slate-500">Spent This Month</p>
                                     <p className="text-4xl font-bold text-red-600">{formatCurrencyWhole(budgetProgress.spent)}</p>
                                     <p className="text-sm text-slate-500"> of {formatCurrencyWhole(budgetProgress.total)}</p>
                                 </div>
-                                <div className="w-full md:w-2/3">
+                                <div className="w-full">
                                     <div className="flex justify-between text-sm font-medium text-slate-600 mb-1">
                                         <span>{budgetProgress.progress.toFixed(1)}% Used</span>
                                         <span className={`${budgetProgress.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -952,7 +977,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                         </div>
                     )}
                 </div>
-                <div className="bg-white rounded-xl shadow p-5 flex flex-col ring-1 ring-slate-100 min-h-0">
+                <div className="md:col-span-8 bg-white rounded-xl shadow p-5 flex flex-col ring-1 ring-slate-100 min-h-[16rem]">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-semibold text-slate-800">
                             {dashboardCardView === 'chart' 
@@ -1003,7 +1028,11 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                         {dashboardCardView === 'chart' ? (
                             <canvas ref={categoryChartCanvasRef}></canvas>
                         ) : (
-                            <SpendingTypeMatrix transactions={transactionsForSelectedMonth} />
+                            <SpendingTypeMatrix 
+                                transactions={transactionsForSelectedMonth} 
+                                onCellClick={handleMatrixCellClick}
+                                activeFilter={matrixFilter}
+                            />
                         )}
                     </div>
                 </div>
@@ -1013,7 +1042,24 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
 
         {/* --- DETAILED TRANSACTION LIST --- */}
         <div className="pt-6 mt-6 border-t">
-            {searchTerm.trim() && (
+            {(matrixFilter.category || matrixFilter.spendingType) && (
+                <div className="bg-sky-100 border border-sky-200 text-sky-800 rounded-lg p-3 mb-6 flex justify-between items-center">
+                    <div className="flex items-center">
+                        <MagnifyingGlassIcon className="h-5 w-5 mr-2 flex-shrink-0" />
+                        <span className="font-semibold">
+                            Filtered by: {filterText}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => setMatrixFilter({ category: null, spendingType: null })}
+                        className="flex items-center text-xs px-3 py-1.5 bg-sky-200 hover:bg-sky-300 rounded-md shadow-sm font-medium"
+                    >
+                        <XCircleIcon className="h-4 w-4 mr-1.5" />
+                        Clear Filter
+                    </button>
+                </div>
+            )}
+            {searchTerm.trim() && !filterText && (
               <div className="bg-sky-100 border border-sky-200 text-sky-800 rounded-lg p-3 mb-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <div className="flex items-center">
                   <MagnifyingGlassIcon className="h-5 w-5 mr-2 flex-shrink-0" />
