@@ -1,7 +1,12 @@
 
 {
-  "currentVersion": "1.12.4",
+  "currentVersion": "1.12.5",
   "changelog": [
+    {
+      "version": "1.12.5",
+      "date": "2025-07-04",
+      "description": "### ✨ New Features\n\n*   **Enhanced Period Selector**: The period selector on the Expenses tab has been enhanced to include 'Current Year' as an option, alongside 'Selected Month' and 'All Months', providing more flexible data analysis."
+    },
     {
       "version": "1.12.4",
       "date": "2025-07-04",

@@ -1,7 +1,8 @@
 
+
 # Product Requirements Document: Net Worth Tracker
 
-**Version:** 1.12.4
+**Version:** 1.12.5
 **Date:** July 4, 2025
 **Author:** Gemini AI
 
@@ -52,7 +53,7 @@ This tab focuses on tracking and analyzing spending habits.
 *   **Smart Expense Import**: The CSV import modal includes an "Advanced Options" section to automatically assign categories and spending types. By default, this is enabled. The system learns from the user's existing transaction history. It identifies the most common category and spending type associated with a vendor (e.g., "Starbucks") and applies them to new transactions from the same vendor.
 *   **AI-Powered Anomaly Detection:** Utilizes the Google Gemini API to analyze a selected month's transactions and highlight potential anomalies, such as unusually large purchases or spending in rare categories.
 *   **Dynamic Monthly Dashboard:**
-    *   **View Controls**: The Period toggle ('Selected Month' / 'All Months'), Month dropdown, and Budget dropdown are grouped together in a visually distinct container in the top toolbar. When 'All Months' is selected, the month and budget dropdowns are disabled to clarify the view context.
+    *   **View Controls**: The Period toggle ('Selected Month' / 'Current Year' / 'All Months'), Month dropdown, and Budget dropdown are grouped together in a visually distinct container in the top toolbar, allowing for flexible data analysis over different timeframes.
     *   Displays total spending for the selected month and compares it to the previous month.
     *   The primary analysis card features a **"Spending by Category"** bar chart (which becomes a stacked **"Spending vs. Budget"** chart when a budget is selected) and can be toggled to show a new **"Spending by Type"** matrix for more granular analysis.
         *   **Interactive Filtering**: The matrix is interactive. Clicking on a category, a spending type total, or a specific cell value will filter the transaction list below to show only the relevant expenses. A status bar indicates the active filter, which can be easily cleared.

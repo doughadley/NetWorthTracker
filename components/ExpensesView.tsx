@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ExpenseTransaction, Budget, CategoryHierarchy, CategoryInclusionSettings, SpendingType } from '../types';
 import { formatCurrencyWhole } from '../utils/formatters';
@@ -101,6 +102,7 @@ const categoryColors = [
 
 type ChartView = 'grouped' | 'stacked';
 type DashboardCardView = 'chart' | 'matrix';
+type PeriodSelection = 'month' | 'year' | 'all';
 
 
 const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransactionsImported, budgets, onUpdateTransactionCategory, onUpdateTransactionSpendingType, onMassUpdateCategory, onMassUpdateSpendingType, categoryStructure, categoryInclusion, onPrintExpenseReport }) => {
@@ -128,7 +130,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [chartView, setChartView] = useState<ChartView>('stacked');
   const [dashboardCardView, setDashboardCardView] = useState<DashboardCardView>('chart');
-  const [showAllMonths, setShowAllMonths] = useState<boolean>(false);
+  const [periodSelection, setPeriodSelection] = useState<PeriodSelection>('month');
 
   const [matrixFilter, setMatrixFilter] = useState<{ category: string | null; spendingType: SpendingType | 'unclassified' | null; }>({ category: null, spendingType: null });
   const [autoAssignCategory, setAutoAssignCategory] = useState(true);
@@ -200,7 +202,17 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   }, [transactions, selectedMonth]);
 
   const transactionsForDashboard = useMemo(() => {
-    const sourceTransactions = showAllMonths ? transactions : transactionsForSelectedMonth;
+    let sourceTransactions: ExpenseTransaction[];
+
+    if (periodSelection === 'month') {
+      sourceTransactions = transactionsForSelectedMonth;
+    } else if (periodSelection === 'year') {
+      const currentYear = new Date().getFullYear();
+      sourceTransactions = transactions.filter(tx => new Date(tx.transactionDate).getFullYear() === currentYear);
+    } else { // 'all'
+      sourceTransactions = transactions;
+    }
+
     return sourceTransactions.filter(tx => {
         if (!EXPENSE_RELATED_TYPES.includes(tx.type.toLowerCase())) {
             return false;
@@ -212,11 +224,21 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         }
         return true;
     });
-  }, [showAllMonths, transactions, transactionsForSelectedMonth, categoryInclusion]);
+  }, [periodSelection, transactions, transactionsForSelectedMonth, categoryInclusion]);
 
 
   const { groupedExpenses, searchTotal } = useMemo(() => {
-    const sourceTransactions = !showAllMonths && selectedMonth ? transactionsForSelectedMonth : transactions;
+    let sourceTransactions: ExpenseTransaction[];
+
+    if (periodSelection === 'month') {
+        sourceTransactions = selectedMonth ? transactionsForSelectedMonth : [];
+    } else if (periodSelection === 'year') {
+        const currentYear = new Date().getFullYear();
+        sourceTransactions = transactions.filter(tx => new Date(tx.transactionDate).getFullYear() === currentYear);
+    } else { // 'all'
+        sourceTransactions = transactions;
+    }
+
 
     let filteredTransactions = sourceTransactions.filter(tx =>
         tx.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -268,7 +290,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     }
 
     return { groupedExpenses: grouped, searchTotal: total };
-  }, [transactions, transactionsForSelectedMonth, showAllMonths, searchTerm, matrixFilter, selectedMonth]);
+  }, [transactions, transactionsForSelectedMonth, periodSelection, searchTerm, matrixFilter, selectedMonth]);
   
   const handleMatrixCellClick = (category: string | null, spendingType: SpendingType | 'unclassified' | null) => {
     setMatrixFilter(prev => {
@@ -410,9 +432,14 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
 
   // -- DASHBOARD CALCULATIONS --
   const kpiMetrics = useMemo(() => {
-    if (showAllMonths) {
+    if (periodSelection === 'all') {
         const totalSpending = transactionsForDashboard.reduce((sum, tx) => sum + tx.amount, 0);
         return { title: 'Total Spending (All Time)', total: Math.abs(totalSpending), change: null };
+    }
+    
+    if (periodSelection === 'year') {
+        const totalSpending = transactionsForDashboard.reduce((sum, tx) => sum + tx.amount, 0);
+        return { title: `Spending for ${new Date().getFullYear()}`, total: Math.abs(totalSpending), change: null };
     }
 
     if (!selectedMonth) return { title: 'Spending', total: 0, change: 0 };
@@ -428,7 +455,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     else if (currentMonthNetExpense < 0) change = -100;
 
     return { title: `Spending for ${formatMonth(selectedMonth)}`, total: Math.abs(currentMonthNetExpense), change };
-  }, [transactions, categoryInclusion, selectedMonth, showAllMonths, transactionsForDashboard]);
+  }, [transactions, categoryInclusion, selectedMonth, periodSelection, transactionsForDashboard]);
   
   const categorySpendingData = useMemo(() => {
     const spendingTotals: Record<string, number> = {};
@@ -437,7 +464,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         spendingTotals[parent] = (spendingTotals[parent] || 0) + tx.amount;
     });
 
-    if (selectedBudget && !showAllMonths) {
+    if (selectedBudget && periodSelection === 'month') {
         const budgetTotals: Record<string, number> = {};
         selectedBudget.items.forEach(item => { const { parent } = parseCategory(item.category); budgetTotals[parent] = (budgetTotals[parent] || 0) + item.amount; });
         const labels = Array.from(new Set([...Object.keys(spendingTotals), ...Object.keys(budgetTotals)])).sort((a, b) => (Math.abs(spendingTotals[b] || 0) + (budgetTotals[b] || 0)) - (Math.abs(spendingTotals[a] || 0) + (budgetTotals[a] || 0)));
@@ -456,7 +483,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         if(otherTotal !== 0) topCategories.push(['Other', otherTotal]);
         return { labels: topCategories.map(item => item[0]), isStacked: false, datasets: { spending: topCategories.map(item => Math.abs(item[1])) } };
     }
-  }, [transactionsForDashboard, selectedBudget, chartView, showAllMonths]);
+  }, [transactionsForDashboard, selectedBudget, chartView, periodSelection]);
   
   
   useEffect(() => {
@@ -468,11 +495,11 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
     const chartDatasets = categorySpendingData.isStacked ? [ { label: 'Spent (Under Budget)', data: categorySpendingData.datasets.spentWithinBudget, backgroundColor: 'rgb(34 197 94)', borderRadius: 4 }, { label: 'Overspent', data: categorySpendingData.datasets.overspent, backgroundColor: 'rgb(239 68 68)', borderRadius: 4 }, { label: 'Budget Remaining', data: categorySpendingData.datasets.budgetRemaining, backgroundColor: 'rgb(226 232 240)', borderRadius: 4 } ] : categorySpendingData.datasets.budget ? [ { label: 'Spent', data: categorySpendingData.datasets.spending, backgroundColor: '#ef4444', borderRadius: 4 }, { label: 'Budget', data: categorySpendingData.datasets.budget, backgroundColor: '#a1a1aa', borderRadius: 4 } ] : [{ label: 'Spent', data: categorySpendingData.datasets.spending, backgroundColor: categoryColors, borderRadius: 4 }];
     const tooltipCallbacks: any = { label: (c:any) => `${c.dataset.label}: ${formatCurrencyWhole(c.parsed.x)}` };
     if (categorySpendingData.isStacked) { tooltipCallbacks.label = (c:any) => `Spent: ${formatCurrencyWhole(categorySpendingData.rawSpending?.[c.dataIndex]??0)} of ${formatCurrencyWhole(categorySpendingData.rawBudget?.[c.dataIndex]??0)} budget`; tooltipCallbacks.filter = (i:any) => i.datasetIndex === 0; }
-    categoryChartRef.current = new Chart(ctx, { type: 'bar', data: { labels: categorySpendingData.labels, datasets: chartDatasets }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: !!selectedBudget && !showAllMonths, position: 'top', align: 'end' }, tooltip: { callbacks: tooltipCallbacks } }, scales: { x: { stacked: categorySpendingData.isStacked, beginAtZero: true, border: { display: false }, grid: { color: '#e2e8f0' }, ticks: { font: { size: 10 }, callback: (v) => formatCurrencyWhole(Number(v)) } }, y: { stacked: categorySpendingData.isStacked, grid: { display: false }, ticks: { font: { size: 10 } } } } } });
-  }, [categorySpendingData, dashboardCardView, showAllMonths]);
+    categoryChartRef.current = new Chart(ctx, { type: 'bar', data: { labels: categorySpendingData.labels, datasets: chartDatasets }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: !!selectedBudget && periodSelection === 'month', position: 'top', align: 'end' }, tooltip: { callbacks: tooltipCallbacks } }, scales: { x: { stacked: categorySpendingData.isStacked, beginAtZero: true, border: { display: false }, grid: { color: '#e2e8f0' }, ticks: { font: { size: 10 }, callback: (v) => formatCurrencyWhole(Number(v)) } }, y: { stacked: categorySpendingData.isStacked, grid: { display: false }, ticks: { font: { size: 10 } } } } } });
+  }, [categorySpendingData, dashboardCardView, periodSelection]);
   
   const budgetProgress = useMemo(() => {
-    if (showAllMonths || !selectedBudget) return null;
+    if (periodSelection !== 'month' || !selectedBudget) return null;
 
     const totalMonthSpent = kpiMetrics.total; // Use the already calculated total for the month.
 
@@ -497,7 +524,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
         remaining: budgetTotal - spentInBudgetedCategories,
         progress: budgetTotal > 0 ? (spentInBudgetedCategories / budgetTotal) * 100 : 0
     };
-  }, [showAllMonths, selectedBudget, kpiMetrics.total, transactionsForDashboard]);
+  }, [periodSelection, selectedBudget, kpiMetrics.total, transactionsForDashboard]);
   
   // -- SELECTION & IMPORT HANDLERS --
   const handleSelectionChange = (id: string, isSelected: boolean) => setSelectedTxIds(prev => { const newSet = new Set(prev); if (isSelected) newSet.add(id); else newSet.delete(id); return newSet; });
@@ -639,6 +666,9 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
   const toggleSubCategory = (key: string) => setExpandedSubCategories(p => p.has(key) ? (new Set([...p].filter(k => k !== key))) : new Set([...p, key]));
   const handleCollapseAll = () => { setExpandedMonths(new Set()); setExpandedParentCategories(new Set()); setExpandedSubCategories(new Set()); };
   const matrixFilterText = [matrixFilter.category ? `Category: "${matrixFilter.category}"` : '', matrixFilter.spendingType ? `Type: "${matrixFilter.spendingType}"` : ''].filter(Boolean).join(' & ');
+  
+  const isPeriodView = periodSelection !== 'month';
+  const periodForPrint = periodSelection === 'month' ? selectedMonth : periodSelection === 'year' ? `Year ${new Date().getFullYear()}` : 'All Months';
 
   return (
     <>
@@ -650,24 +680,27 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                 <div>
                     <label className="text-sm font-medium text-slate-600 mr-2">Period:</label>
                     <div className="inline-flex rounded-md shadow-sm">
-                        <button type="button" onClick={() => setShowAllMonths(false)} className={`px-4 py-2 text-sm font-medium border border-slate-300 rounded-l-lg ${!showAllMonths ? 'bg-primary text-white z-10' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
+                        <button type="button" onClick={() => setPeriodSelection('month')} className={`px-4 py-2 text-sm font-medium border border-slate-300 rounded-l-lg ${periodSelection === 'month' ? 'bg-primary text-white z-10' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
                             Selected Month
                         </button>
-                        <button type="button" onClick={() => setShowAllMonths(true)} className={`-ml-px px-4 py-2 text-sm font-medium border border-slate-300 rounded-r-lg ${showAllMonths ? 'bg-primary text-white z-10' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
+                        <button type="button" onClick={() => setPeriodSelection('year')} className={`-ml-px px-4 py-2 text-sm font-medium border border-slate-300 ${periodSelection === 'year' ? 'bg-primary text-white z-10' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
+                            Current Year
+                        </button>
+                        <button type="button" onClick={() => setPeriodSelection('all')} className={`-ml-px px-4 py-2 text-sm font-medium border border-slate-300 rounded-r-lg ${periodSelection === 'all' ? 'bg-primary text-white z-10' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>
                             All Months
                         </button>
                     </div>
                 </div>
                 <div className="flex-shrink-0">
                     <label htmlFor="month-select" className="sr-only">Month</label>
-                    <select id="month-select" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} disabled={showAllMonths} className="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black disabled:bg-slate-200 disabled:cursor-not-allowed">
+                    <select id="month-select" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} disabled={isPeriodView} className="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black disabled:bg-slate-200 disabled:cursor-not-allowed">
                         {availableMonths.map(month => ( <option key={month} value={month}>{formatMonth(month)}</option> ))}
                     </select>
                 </div>
                 {budgets.length > 0 && (
                     <div className="flex-shrink-0">
                         <label htmlFor="budget-select-unified" className="sr-only">Compare with Budget</label>
-                        <select id="budget-select-unified" value={selectedBudgetId} onChange={e => setSelectedBudgetId(e.target.value)} disabled={showAllMonths} className="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black disabled:bg-slate-200 disabled:cursor-not-allowed">
+                        <select id="budget-select-unified" value={selectedBudgetId} onChange={e => setSelectedBudgetId(e.target.value)} disabled={isPeriodView} className="block w-full rounded-md border-slate-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-white text-black disabled:bg-slate-200 disabled:cursor-not-allowed">
                             <option value="">— No Budget —</option>
                             {budgets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                         </select>
@@ -718,7 +751,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-slate-800"> {dashboardCardView === 'chart' ? (budgetProgress ? 'Spending vs. Budget' : 'Spending by Category') : 'Spending by Type'} </h3>
                             <div className="flex items-center gap-4">
-                                {dashboardCardView === 'chart' && selectedBudget && !showAllMonths && (
+                                {dashboardCardView === 'chart' && selectedBudget && periodSelection === 'month' && (
                                     <div> <span className="text-xs text-slate-500 mr-2">Chart View:</span> <div className="inline-flex rounded-md shadow-sm" role="group"> <button type="button" onClick={() => setChartView('stacked')} className={`px-3 py-1 text-xs font-medium border border-slate-300 rounded-l-lg ${chartView === 'stacked' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}> Stacked </button> <button type="button" onClick={() => setChartView('grouped')} className={`-ml-px px-3 py-1 text-xs font-medium border border-slate-300 rounded-r-lg ${chartView === 'grouped' ? 'bg-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}> Grouped </button> </div> </div>
                                 )}
                                 <div className="inline-flex rounded-md shadow-sm" role="group">
@@ -739,7 +772,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({ transactions, onTransaction
              <div className="flex justify-between items-center mb-4 min-h-[40px]">
                 <div className="flex items-center gap-3">
                     <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-md shadow hover:bg-slate-700 transition"><ArrowUpTrayIcon className="mr-2" />Import</button>
-                    <button onClick={() => onPrintExpenseReport(transactionsForDashboard, selectedBudget, showAllMonths ? 'All Months' : selectedMonth)} className="flex items-center justify-center px-4 py-2 bg-slate-600 text-white rounded-md shadow hover:bg-slate-700 transition duration-150 disabled:opacity-50" disabled={transactionsForDashboard.length === 0}> <PrinterIcon className="mr-2" /> Report </button>
+                    <button onClick={() => onPrintExpenseReport(transactionsForDashboard, selectedBudget, periodForPrint)} className="flex items-center justify-center px-4 py-2 bg-slate-600 text-white rounded-md shadow hover:bg-slate-700 transition duration-150 disabled:opacity-50" disabled={transactionsForDashboard.length === 0}> <PrinterIcon className="mr-2" /> Report </button>
                     <button onClick={handleCollapseAll} className="flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-md shadow hover:bg-slate-700 transition"><ArrowsPointingInIcon className="mr-2 w-5 h-5" /> Collapse All</button>
                 </div>
                 {matrixFilterText && (
